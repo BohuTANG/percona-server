@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -300,8 +300,10 @@ void Gcs_xcom_state_exchange::reset_with_flush()
 
 void Gcs_xcom_state_exchange::reset()
 {
+#ifndef NDEBUG
   Gcs_xcom_communication_interface *binding_broadcaster=
     static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
+#endif
   assert(binding_broadcaster->number_buffered_messages() == 0);
 
   m_configuration_id= null_synode;
@@ -609,6 +611,12 @@ process_member_state(Xcom_member_state *ms_info,
         << m_configuration_id.node << ")."
       )
     );
+    /*
+     * ms_info will leak if we don't delete it here.
+     * If this branch is not taken, m_member_states takes ownership of the
+     * pointer below.
+     */
+    delete ms_info;
     return false;
   }
 

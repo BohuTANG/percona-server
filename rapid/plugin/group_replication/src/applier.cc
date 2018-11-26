@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -298,6 +298,11 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
   int error= 0;
   uchar* payload= data_packet->payload;
   uchar* payload_end= data_packet->payload + data_packet->len;
+
+  DBUG_EXECUTE_IF("group_replication_before_apply_data_packet", {
+    const char act[] = "now wait_for continue_apply";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
   if (check_single_primary_queue_status())
     return 1; /* purecov: inspected */
@@ -786,7 +791,7 @@ Applier_module::wait_for_applier_complete_suspension(bool *abort_flag,
   {
     error= APPLIER_GTID_CHECK_TIMEOUT_ERROR; //timeout error
     while (error == APPLIER_GTID_CHECK_TIMEOUT_ERROR && !(*abort_flag))
-      error= wait_for_applier_event_execution(1); //blocking
+      error= wait_for_applier_event_execution(1, true); //blocking
   }
 
   return (error == APPLIER_RELAY_LOG_NOT_INITED);
@@ -816,7 +821,8 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(double timeout)
+Applier_module::wait_for_applier_event_execution(double timeout,
+                                                 bool check_and_purge_partial_transactions)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;
@@ -834,7 +840,8 @@ Applier_module::wait_for_applier_event_execution(double timeout)
       the applier thread will release the lock and update the applier thread
       execution position correctly and safely.
     */
-    if (((Applier_handler*)event_applier)->is_partial_transaction_on_relay_log())
+    if (check_and_purge_partial_transactions &&
+        ((Applier_handler*)event_applier)->is_partial_transaction_on_relay_log())
     {
         error= purge_applier_queue_and_restart_applier_module();
     }

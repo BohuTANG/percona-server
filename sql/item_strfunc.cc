@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,13 @@
 #include "sha2.h"
 
 #include "item_strfunc.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
 
 #include "base64.h"                  // base64_encode_max_arg_length
 #include "my_aes.h"                  // MY_AES_IV_SIZE
@@ -239,9 +246,9 @@ String *Item_func_sha2::val_str_ascii(String *str)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length= 0;
 
+  String *input_string= args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
 
-  String *input_string= args[0]->val_str(str);
   if (input_string == NULL)
   {
     null_value= TRUE;
@@ -2159,6 +2166,12 @@ static size_t calculate_password(String *str, char *buffer)
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
+    if (str->length() > MAX_PLAINTEXT_LENGTH)
+    {
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+      return 0;
+    }
+
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
     buffer_len= strlen(buffer) + 1;
@@ -2224,31 +2237,6 @@ String *Item_func_password::val_str_ascii(String *str)
            default_charset());
 
   return str;
-}
-
-char *Item_func_password::
-  create_password_hash_buffer(THD *thd, const char *password,  size_t pass_len)
-{
-  String *password_str= new (thd->mem_root)String(password, thd->variables.
-                                                    character_set_client);
-  my_validate_password_policy(password_str->ptr(), password_str->length());
-
-  char *buff= NULL;
-  if (thd->variables.old_passwords == 0)
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH + 1);
-    my_make_scrambled_password_sha1(buff, password, pass_len);
-  }
-#if defined(HAVE_OPENSSL)
-  else
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
-    my_make_scrambled_password(buff, password, pass_len);
-  }
-#endif
-  return buff;
 }
 
 bool Item_func_encrypt::itemize(Parse_context *pc, Item **res)
@@ -3198,14 +3186,15 @@ String *Item_func_format::val_str_ascii(String *str)
       str_length >= dec_length + 1 + lc->grouping[0])
   {
     /* We need space for ',' between each group of digits as well. */
-    char buf[2 * FLOATING_POINT_BUFFER];
+    char buf[2 * FLOATING_POINT_BUFFER + 2] = {0};
     int count;
     const char *grouping= lc->grouping;
     char sign_length= *str->ptr() == '-' ? 1 : 0;
     const char *src= str->ptr() + str_length - dec_length - 1;
     const char *src_begin= str->ptr() + sign_length;
-    char *dst= buf + sizeof(buf);
-    
+    char *dst= buf + 2 * FLOATING_POINT_BUFFER;
+    char *start_dst = dst;
+
     /* Put the fractional part */
     if (dec)
     {
@@ -3237,7 +3226,8 @@ String *Item_func_format::val_str_ascii(String *str)
       *--dst= *str->ptr();
     
     /* Put the rest of the integer part without grouping */
-    str->copy(dst, buf + sizeof(buf) - dst, &my_charset_latin1);
+    size_t result_length = start_dst - dst;
+    str->copy(dst, result_length, &my_charset_latin1);
   }
   else if (dec_length && lc->decimal_point != '.')
   {

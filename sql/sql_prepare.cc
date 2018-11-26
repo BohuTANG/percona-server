@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,6 +86,7 @@ When one supplies long data for a placeholder:
 #include "sql_prepare.h"
 #include "auth_common.h"        // insert_precheck
 #include "log.h"                // query_logger
+#include "m_string.h"
 #include "opt_trace.h"          // Opt_trace_array
 #include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START
 #include "set_var.h"            // set_var_base
@@ -162,7 +163,6 @@ public:
   virtual void end_partial_result_set();
   virtual int shutdown(bool server_shutdown= false);
   virtual bool connection_alive();
-  virtual SSL_handle get_ssl();
   virtual void start_row();
   virtual bool end_row();
   virtual void abort_row(){};
@@ -2138,10 +2138,12 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length)
       thd->get_protocol()->get_client_capabilities());
 
   thd->set_protocol(&thd->protocol_binary);
+
+  /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name().str, stmt->name().length,
-                                         query, length);
+                                         NULL, 0);
 
   if (stmt->prepare(query, length))
   {
@@ -2376,10 +2378,11 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
+  /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name().str, stmt->name().length,
-                                         query, query_len);
+                                         NULL, 0);
 
   if (stmt->prepare(query, query_len))
   {
@@ -2421,6 +2424,13 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
 
   // Default to READ access for every field that is resolved
   thd->mark_used_columns= MARK_COLUMNS_READ;
+
+  /*
+    THD::derived_tables_processing is not reset if derived table resolving fails
+    for the previous sub-statement. Hence resetting it here.
+  */
+  thd->derived_tables_processing= false;
+
   /*
     We have to update "thd" pointer in LEX, all its units and in LEX::result,
     since statements which belong to trigger body are associated with TABLE
@@ -3164,9 +3174,8 @@ void mysql_stmt_get_longdata(THD *thd, ulong stmt_id, uint param_number,
   {
     stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= thd->get_stmt_da()->mysql_errno();
-    size_t len= sizeof(stmt->last_error);
-    strncpy(stmt->last_error, thd->get_stmt_da()->message_text(), len - 1);
-    stmt->last_error[len - 1] = '\0';
+    my_snprintf(stmt->last_error, sizeof(stmt->last_error), "%.*s",
+                MYSQL_ERRMSG_SIZE - 1, thd->get_stmt_da()->message_text());
   }
   thd->pop_diagnostics_area();
 
@@ -3393,7 +3402,11 @@ void Prepared_statement::setup_set_params()
       opt_general_log || opt_slow_log ||
       (lex->sql_command == SQLCOM_SELECT &&
        lex->safe_to_cache_query &&
-       !lex->describe))
+       !lex->describe)
+#ifndef EMBEDDED_LIBRARY
+       || is_global_audit_mask_set()
+#endif
+     )
   {
     with_log= true;
   }
@@ -3675,6 +3688,19 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   lex_end(lex);
 
   rewrite_query_if_needed(thd);
+
+  if (thd->rewritten_query.length())
+  {
+    MYSQL_SET_PS_TEXT(m_prepared_stmt,
+                      thd->rewritten_query.c_ptr_safe(),
+                      thd->rewritten_query.length());
+  }
+  else
+  {
+    MYSQL_SET_PS_TEXT(m_prepared_stmt,
+                      thd->query().str,
+                      thd->query().length);
+  }  
 
   cleanup_stmt();
   stmt_backup.restore_thd(thd, this);
@@ -4859,11 +4885,6 @@ int
 Protocol_local::shutdown(bool server_shutdown)
 {
   return 0;
-}
-
-SSL_handle Protocol_local::get_ssl()
-{
-  return NULL;
 }
 
 /**

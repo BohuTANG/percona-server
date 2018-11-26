@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,6 +150,9 @@ ulong recovery_reconnect_interval_var= 0;
 /* Write set extraction algorithm*/
 int write_set_extraction_algorithm= HASH_ALGORITHM_OFF;
 
+/* Lower case table name */
+uint gr_lower_case_table_names= 0;
+
 /* Generic components variables */
 ulong components_stop_timeout_var= LONG_TIMEOUT;
 
@@ -273,6 +276,23 @@ int log_message(enum plugin_log_level level, const char *format, ...)
   return my_plugin_log_message(&plugin_info_ptr, level, buff);
 }
 
+static void option_deprecation_warning(MYSQL_THD thd, const char* name)
+{
+  if (thd != NULL)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        name);
+  }
+  else
+  {
+    log_message(MY_WARNING_LEVEL,
+                ER_DEFAULT(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                name);
+  }
+}
+
 /*
   Plugin interface.
 */
@@ -369,6 +389,12 @@ int plugin_group_replication_start()
   }
   if (init_group_sidno())
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
+
+  if (allow_local_disjoint_gtids_join_var)
+  {
+    option_deprecation_warning(current_thd,
+                               "group_replication_allow_local_disjoint_gtids_join");
+  }
 
   /*
     Instantiate certification latch.
@@ -632,8 +658,12 @@ int configure_group_member_manager(char *hostname, char *uuid,
                     local_version= plugin_version + (0x010000);
                   };);
   Member_version local_member_plugin_version(local_version);
-  delete local_member_info;
 
+  DBUG_EXECUTE_IF("group_replication_force_member_uuid",
+                  {
+                    uuid= const_cast<char*>("cccccccc-cccc-cccc-cccc-cccccccccccc");
+                  };);
+  delete local_member_info;
   local_member_info= new Group_member_info(hostname,
                                            port,
                                            uuid,
@@ -645,7 +675,8 @@ int configure_group_member_manager(char *hostname, char *uuid,
                                            Group_member_info::MEMBER_ROLE_SECONDARY,
                                            single_primary_mode_var,
                                            enforce_update_everywhere_checks_var,
-                                           member_weight_var);
+                                           member_weight_var,
+                                           gr_lower_case_table_names);
 
   //Create the membership info visible for the group
   delete group_member_mgr;
@@ -1046,12 +1077,6 @@ int plugin_group_replication_deinit(void *p)
     compatibility_mgr= NULL;
   }
 
-  if (channel_observation_manager != NULL)
-  {
-    delete channel_observation_manager;
-    channel_observation_manager= NULL;
-  }
-
   if (unregister_server_state_observer(&server_state_observer, p))
   {
     log_message(MY_ERROR_LEVEL,
@@ -1077,6 +1102,12 @@ int plugin_group_replication_deinit(void *p)
     log_message(MY_INFORMATION_LEVEL,
                 "All Group Replication server observers"
                 " have been successfully unregistered");
+
+  if (channel_observation_manager != NULL)
+  {
+    delete channel_observation_manager;
+    channel_observation_manager= NULL;
+  }
 
   delete gcs_module;
   gcs_module= NULL;
@@ -1622,6 +1653,16 @@ static int check_if_server_properly_configured()
                 "'enforce_update_everywhere_checks' enabled.");
     DBUG_RETURN(1);
   }
+
+  gr_lower_case_table_names= startup_pre_reqs.lower_case_table_names;
+  DBUG_ASSERT (gr_lower_case_table_names <= 2);
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("group_replication_skip_encode_lower_case_table_names",
+                {
+                  gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
+                });
+#endif
+
 
   DBUG_RETURN(0);
 }
@@ -2238,6 +2279,20 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
+static void
+update_allow_local_disjoint_gtids_join(MYSQL_THD thd, SYS_VAR *var,
+                                       void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_allow_local_disjoint_gtids_join");
+
+  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+
+  option_deprecation_warning(thd,
+                             "group_replication_allow_local_disjoint_gtids_join");
+
+  DBUG_VOID_RETURN;
+}
+
 static void update_unreachable_timeout(MYSQL_THD thd, SYS_VAR *var,
                                        void *var_ptr, const void *save)
 {
@@ -2536,7 +2591,7 @@ static MYSQL_SYSVAR_BOOL(
   PLUGIN_VAR_OPCMDARG,                   /* optional var */
   "Allow this server to join the group even if it has transactions not present in the group",
   NULL,                                  /* check func. */
-  NULL,                                  /* update func*/
+  update_allow_local_disjoint_gtids_join,/* update func*/
   0                                      /* default */
 );
 

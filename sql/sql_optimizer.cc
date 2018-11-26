@@ -1340,7 +1340,7 @@ void JOIN::test_skip_sort()
       is going to be used as it is applied now only for one table queries
       with covering indexes.
     */
-    if (!(select_lex->active_options() & SELECT_BIG_RESULT) ||
+    if (!(select_lex->active_options() & SELECT_BIG_RESULT || with_json_agg) ||
         (tab->quick() &&
          tab->quick()->get_type() ==
            QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
@@ -2952,7 +2952,8 @@ bool JOIN::get_best_combination()
   List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
   TABLE_LIST *sj_nest;
   while ((sj_nest= sj_list_it++))
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
+    TRASH(static_cast<void*>(&sj_nest->nested_join->sjm),
+          sizeof(sj_nest->nested_join->sjm));
 
   DBUG_RETURN(false);
 }
@@ -4807,7 +4808,8 @@ void JOIN::update_depend_map(ORDER *order)
   {
     table_map depend_map;
     order->item[0]->update_used_tables();
-    order->depend_map=depend_map=order->item[0]->used_tables();
+    order->depend_map= depend_map=
+      order->item[0]->used_tables() & ~PARAM_TABLE_BIT;
     order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
@@ -6376,7 +6378,7 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
       if (!(sj_nest->nested_join->sjm.positions=
             (st_position*)join->thd->alloc(sizeof(st_position)*n_tables)))
         DBUG_RETURN(true);
-      memcpy(sj_nest->nested_join->sjm.positions,
+      memcpy(static_cast<void*>(sj_nest->nested_join->sjm.positions),
              join->best_positions + join->const_tables,
              sizeof(st_position) * n_tables);
     }
@@ -10551,6 +10553,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
   }
+  map&= ~PARAM_TABLE_BIT;
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,6 +81,7 @@ my_bool disconnect_on_expired_password= TRUE;
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 #if !defined(HAVE_YASSL)
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
@@ -882,7 +883,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
 {
 #if defined(HAVE_OPENSSL)
   Vio *vio= thd->get_protocol_classic()->get_vio();
-  SSL *ssl= thd->get_protocol()->get_ssl();
+  SSL *ssl= (SSL*) vio->ssl_arg;
   X509 *cert;
 #endif /* HAVE_OPENSSL */
 
@@ -1987,7 +1988,8 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.host_or_ip_length= sctx_host_or_ip.length;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (thd->get_protocol()->get_ssl())
+  Vio *vio= thd->get_protocol_classic()->get_vio();
+  if (vio->ssl_arg)
     mpvio->vio_is_encrypted= 1;
   else
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
@@ -2656,7 +2658,8 @@ int set_native_salt(const char* password, unsigned int password_len,
 int generate_sha256_password(char *outbuf, unsigned int *buflen,
                              const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
+      my_validate_password_policy(inbuf, inbuflen))
     return 1;
   if (inbuflen == 0)
   {
@@ -3056,6 +3059,10 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 #endif /* HAVE_YASSL */
   } // if(!my_vio_is_encrypter())
 
+  /* Don't process the password if it is longer than maximum limit */
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
+
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)
     DBUG_RETURN(CR_ERROR);
@@ -3368,31 +3375,24 @@ public:
   RSA *operator()(void)
   {
     /* generate RSA keys */
-#if OPENSSL_VERSION_NUMBER < 0x10100000
-    RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
-#else
-    BIGNUM *exponent_bn= BN_new();
-    if (exponent_bn == NULL)
-      return NULL;
-    if (BN_set_word(exponent_bn, m_exponent) == 0)
-    {
-      BN_free(exponent_bn);
-      return NULL;
-    }
     RSA *rsa= RSA_new();
-    if(rsa == NULL)
-    {
-      BN_free(exponent_bn);
+    if (!rsa)
       return NULL;
-    }
-    if(RSA_generate_key_ex(rsa, m_key_size, exponent_bn, NULL) == 0)
+    BIGNUM *e= BN_new();
+    if (!e)
     {
       RSA_free(rsa);
-      BN_free(exponent_bn);
       return NULL;
     }
-    BN_free(exponent_bn);
-#endif
+    if (!BN_set_word(e, m_exponent) ||
+        !RSA_generate_key_ex(rsa, m_key_size, e, NULL))
+    {
+      RSA_free(rsa);
+      BN_free(e);
+      return NULL;
+    }
+    BN_free(e);
+
     return rsa; // pass ownership
   }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_rdtsc.c psi_noop.c my_syslog.c
-				my_chmod.c my_thread.c)
+				my_chmod.c my_thread.c system_key.c)
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES
@@ -85,7 +85,3 @@ ADD_TEST(queues_test queues)
 ADD_EXECUTABLE(base64_test base64.c)
 SET_TARGET_PROPERTIES(base64_test PROPERTIES COMPILE_FLAGS "-DMAIN")
 TARGET_LINK_LIBRARIES(base64_test mysys)
-
-IF(MSVC)
-   INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()

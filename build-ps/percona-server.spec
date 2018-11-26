@@ -192,7 +192,8 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires:       Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix} 
+Requires(pre):  Percona-Server-shared%{product_suffix}
+Requires:	Percona-Server-client%{product_suffix} 
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
@@ -270,7 +271,7 @@ Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Provides:       mysql-shared
 %if 0%{?rhel} > 6
-Requires:       Percona-Server-shared-compat%{product_suffix}
+Requires(pre):  Percona-Server-shared-compat%{product_suffix}
 %endif
 
 %description -n Percona-Server-shared%{product_suffix}
@@ -459,9 +460,9 @@ install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld_safe.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
  
-%if 0%{?rhel} > 6
-  install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
-%endif
+#%if 0%{?rhel} > 6
+#  install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
+#%endif
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
@@ -532,7 +533,7 @@ fi
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
 if [ ! -e /var/log/mysqld.log ]; then
-    /bin/install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log
+    /usr/bin/install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log
 fi
 #/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
@@ -545,10 +546,15 @@ fi
       /sbin/chkconfig --add mysql
   fi
 %endif
+
+%if 0%{?rhel} > 6
+  MYCNF_PACKAGE="mariadb-libs"
+%else
+  MYCNF_PACKAGE="mysql-libs"
+%endif
+
 if [ -e /etc/my.cnf ]; then
-    MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
-else
-    MYCNF_PACKAGE='mariadb-libs'
+  MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep -m 1 Name | awk '{print $3}')
 fi
 if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" ]
 then
@@ -578,24 +584,40 @@ EOL
     rm -f /etc/my.cnf /tmp/my.cnf
   fi
 fi
-if [ ! -f /etc/my.cnf ]
-then
+if [ ! -f /etc/my.cnf ]; then
+  rm -rf /etc/my.cnf
   update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
 else
-  echo " -------------"
-  echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
-  echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
-  echo "   *  Once it is done please execute the following commands:"
-  echo " rm -rf /etc/my.cnf"
-  echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
-  echo " -------------"
-  cnflog=$(/usr/bin/my_print_defaults mysqld|grep -c log-error)
-  if [ $cnflog = 0 -a -f /etc/my.cnf ]; then
-    sed -i "/^\[mysqld\]$/a log-error=/var/log/mysqld.log" /etc/my.cnf
-  fi
-  cnfpid=$(/usr/bin/my_print_defaults mysqld|grep -c pid-file)
-  if [ $cnfpid = 0 -a -f /etc/my.cnf ]; then
-    sed -i "/^\[mysqld\]$/a pid-file=/var/run/mysqld/mysqld.pid" /etc/my.cnf
+  if [ "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
+      real_file=$(readlink -f /etc/my.cnf)
+      if [ -L /etc/my.cnf ] && [ "x${real_file}" == "x/etc/percona-server.cnf" ]; then
+          rm -rf /etc/my.cnf
+          update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
+      else
+          echo " -------------"
+          echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
+          echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
+          echo "   *  Once it is done please execute the following commands:"
+          echo " rm -rf /etc/my.cnf"
+          echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
+          echo " -------------"
+      fi
+  else
+      echo " -------------"
+      echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
+      echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
+      echo "   *  Once it is done please execute the following commands:"
+      echo " rm -rf /etc/my.cnf"
+      echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
+      echo " -------------"
+      cnflog=$(/usr/bin/my_print_defaults mysqld|grep -c log-error)
+      if [ $cnflog = 0 -a -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
+          sed -i "/^\[mysqld\]$/a log-error=/var/log/mysqld.log" /etc/my.cnf
+      fi
+      cnfpid=$(/usr/bin/my_print_defaults mysqld|grep -c pid-file)
+      if [ $cnfpid = 0 -a -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
+          sed -i "/^\[mysqld\]$/a pid-file=/var/run/mysqld/mysqld.pid" /etc/my.cnf
+      fi
   fi
 fi
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
@@ -668,7 +690,6 @@ fi
 %if 0%{?rocksdb}
 %post -n Percona-Server-rocksdb%{product_suffix}
 if [ $1 -eq 1 ] ; then
-  echo -e "\n\n * This is _EXPERIMENTAL_ build so it is not for production systems."
   echo -e "\n\n * This release of Percona Server is distributed with RocksDB storage engine."
   echo -e " * Run the following script to enable the RocksDB storage engine in Percona Server:\n"
   echo -e "\tps-admin --enable-rocksdb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
@@ -996,13 +1017,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
-
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
 
 %if 0%{?tokudb}
 %files -n Percona-Server-tokudb%{product_suffix}
