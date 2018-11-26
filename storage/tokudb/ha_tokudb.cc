@@ -27,7 +27,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "tokudb_buffer.h"
 #include "tokudb_status.h"
 #include "ha_tokudb.h"
-#include "partitioned_counter.h"
 #include "ha_tokupart.h"
 #include "hatoku_cmp.h"
 #include "partition_info.h"
