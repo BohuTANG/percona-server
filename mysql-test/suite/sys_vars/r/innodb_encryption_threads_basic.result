@@ -1,3 +1,0 @@
-SELECT @@global.innodb_encryption_threads;
-@@global.innodb_encryption_threads
-0

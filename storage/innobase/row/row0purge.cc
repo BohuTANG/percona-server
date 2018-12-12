@@ -910,7 +910,7 @@ try_again:
 		goto close_exit;
 	}
 
-	if (node->table->file_unreadable) {
+	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
 		dict_table_close(node->table, FALSE, FALSE);

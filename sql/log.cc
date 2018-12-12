@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #include "binlog.h"             // generate_new_log_name
 #include "sp_instr.h"           // sp_lex_instr
 #include "sql_prepare.h"        // Prepared_statement
-#include "mysqld.h" // binlog_space_limit etc
+#include "mysqld.h" // max_binlog_files etc
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -216,7 +216,6 @@ protected:
 /** In case of an error, a message is printed to the error log. */
 static Query_log_table_intact log_table_intact;
 
-ulonglong binlog_space_limit;
 ulong max_binlog_files;
 ulong max_slowlog_size;
 ulong max_slowlog_files;
@@ -927,7 +926,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   thd->profiling.print_current(&log_file);
 #endif
 
-  if (thd->innodb_slow_log_data_logged())
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB))
+      && thd->innodb_trx_id)
   {
     char buf[20];
     snprintf(buf, 20, "%llX", thd->innodb_trx_id);
@@ -951,30 +951,29 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                   thd->query_plan_fsort_passes) == (uint) -1)
     goto err;
 
-  if (thd->innodb_slow_log_enabled())
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB))
+      && thd->innodb_was_used)
   {
-    if (thd->innodb_slow_log_data_logged())
-    {
-      char buf[3][20];
-      snprintf(buf[0], 20, "%.6f",
-               thd->innodb_io_reads_wait_timer / 1000000.0);
-      snprintf(buf[1], 20, "%.6f",
-               thd->innodb_lock_que_wait_timer / 1000000.0);
-      snprintf(buf[2], 20, "%.6f",
-               thd->innodb_innodb_que_wait_timer / 1000000.0);
-      if (my_b_printf(&log_file,
-                      "#   InnoDB_IO_r_ops: %lu  InnoDB_IO_r_bytes: %llu  "
-                      "InnoDB_IO_r_wait: %s\n"
-                      "#   InnoDB_rec_lock_wait: %s  InnoDB_queue_wait: %s\n"
-                      "#   InnoDB_pages_distinct: %lu\n",
-                      thd->innodb_io_reads, thd->innodb_io_read, buf[0],
-                      buf[1], buf[2], thd->innodb_page_access) == (uint)-1)
-        goto err;
-    }
-    else if (my_b_printf(
-                 &log_file,
-                 "# No InnoDB statistics available for this query\n") ==
-             (uint)-1)
+    char buf[3][20];
+    snprintf(buf[0], 20, "%.6f", thd->innodb_io_reads_wait_timer / 1000000.0);
+    snprintf(buf[1], 20, "%.6f", thd->innodb_lock_que_wait_timer / 1000000.0);
+    snprintf(buf[2], 20, "%.6f", thd->innodb_innodb_que_wait_timer / 1000000.0);
+    if (my_b_printf(&log_file,
+                    "#   InnoDB_IO_r_ops: %lu  InnoDB_IO_r_bytes: %llu  "
+                    "InnoDB_IO_r_wait: %s\n"
+                    "#   InnoDB_rec_lock_wait: %s  InnoDB_queue_wait: %s\n"
+                    "#   InnoDB_pages_distinct: %lu\n",
+                    thd->innodb_io_reads, thd->innodb_io_read,
+                    buf[0], buf[1], buf[2], thd->innodb_page_access)
+        == (uint) -1)
+      goto err;
+  }
+  else
+  {
+    if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB)) &&
+        my_b_printf(&log_file,
+                    "# No InnoDB statistics available for this query\n")
+        == (uint) -1)
       goto err;
   }
 
@@ -2326,7 +2325,7 @@ void init_error_log()
 }
 
 
-bool open_error_log(const char *filename, bool get_lock)
+bool open_error_log(const char *filename)
 {
   DBUG_ASSERT(filename);
   int retries= 2, errors= 0;
@@ -2346,13 +2345,9 @@ bool open_error_log(const char *filename, bool get_lock)
   if (errors)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    if (get_lock)
-      mysql_mutex_unlock(&LOCK_error_log);
-    sql_print_error(ER_DEFAULT(ER_CANT_OPEN_ERROR_LOG), filename,
-                    ": ", my_strerror(errbuf, sizeof(errbuf), errno));
+    sql_print_error("Could not open file '%s' for error logging: %s",
+                    filename,  my_strerror(errbuf, sizeof(errbuf), errno));
     flush_error_log_messages();
-    if (get_lock)
-      mysql_mutex_lock(&LOCK_error_log);
     return true;
   }
 
@@ -2387,10 +2382,10 @@ bool reopen_error_log()
   if (!error_log_file)
     return false;
   mysql_mutex_lock(&LOCK_error_log);
-  bool result= open_error_log(error_log_file, true);
+  bool result= open_error_log(error_log_file);
   mysql_mutex_unlock(&LOCK_error_log);
   if (result)
-    my_error(ER_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".", "");
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
   return result;
 }
 

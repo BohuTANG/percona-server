@@ -52,9 +52,13 @@ static bool field_valid_for_tokudb_table(Field* field) {
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_FLOAT:
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
+    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
+#endif
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_BIT:
     case MYSQL_TYPE_STRING:
@@ -179,6 +183,14 @@ static TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
+#ifdef MARIADB_BASE_VERSION
+        // case to handle fractional seconds in MariaDB
+        // 
+        if (field->key_type() == HA_KEYTYPE_BINARY) {
+            ret_val = toku_type_fixbinary;
+            goto exit;
+        }
+#endif
         ret_val = toku_type_int;
         goto exit;
     case MYSQL_TYPE_DOUBLE:
@@ -187,9 +199,13 @@ static TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_FLOAT:
         ret_val = toku_type_float;
         goto exit;
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
+    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
+#endif
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_BIT:
         ret_val = toku_type_fixbinary;
@@ -673,7 +689,11 @@ static inline uchar* pack_toku_blob(
     uint32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
     uint32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
     uint32_t max_num_bytes,
+#if MYSQL_VERSION_ID >= 50600
     const CHARSET_INFO* charset
+#else
+    CHARSET_INFO* charset
+#endif
     ) 
 {
     uint32_t length = 0;
@@ -825,7 +845,11 @@ static inline uchar* pack_toku_varstring(
     uint32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
     uint32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
     uint32_t max_num_bytes,
+#if MYSQL_VERSION_ID >= 50600
     const CHARSET_INFO *charset
+#else
+    CHARSET_INFO* charset
+#endif
     ) 
 {
     uint32_t length = 0;
@@ -1843,10 +1867,15 @@ static uint32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_S
     return pos - buf;
 }
 
-static uint32_t pack_desc_pk_offset_info(uchar* buf,
-                                         KEY_PART_INFO* key_part,
-                                         KEY* prim_key,
-                                         uchar* pk_info) {
+static uint32_t pack_desc_pk_offset_info(
+    uchar* buf, 
+    KEY_AND_COL_INFO* kc_info, 
+    TABLE_SHARE* table_share, 
+    KEY_PART_INFO* key_part, 
+    KEY* prim_key,
+    uchar* pk_info
+    ) 
+{
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     bool found_col_in_pk = false;
@@ -1972,9 +2001,7 @@ static uint32_t pack_desc_key_length_info(uchar* buf, KEY_AND_COL_INFO* kc_info,
     return pos - buf;
 }
 
-static uint32_t pack_desc_char_info(uchar* buf,
-                                    TABLE_SHARE* table_share,
-                                    KEY_PART_INFO* key_part) {
+static uint32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
@@ -2536,7 +2563,14 @@ static uint32_t create_toku_secondary_key_pack_descriptor (
             pos += sizeof(uint32_t);
         }
         if (is_col_in_pk) {
-            pos += pack_desc_pk_offset_info(pos, &curr_kpi, prim_key, pk_info);
+            pos += pack_desc_pk_offset_info(
+                pos,
+                kc_info,
+                table_share,
+                &curr_kpi,
+                prim_key,
+                pk_info
+                );
         }
         else {
             pos += pack_desc_offset_info(
@@ -2553,7 +2587,12 @@ static uint32_t create_toku_secondary_key_pack_descriptor (
             table_share,
             &curr_kpi
             );
-        pos += pack_desc_char_info(pos, table_share, &curr_kpi);
+        pos += pack_desc_char_info(
+            pos,
+            kc_info,
+            table_share,
+            &curr_kpi
+            );
     }
 
     offset = pos - buf;
@@ -3085,9 +3124,13 @@ static bool fields_are_same_type(Field* a, Field* b) {
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIMESTAMP:
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
+    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
+#endif
         // length
         if (a->pack_length() != b->pack_length()) {
             retval = false;

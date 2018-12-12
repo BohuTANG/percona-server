@@ -19,7 +19,9 @@ MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
   SET(LIBEVENT_FOUND  TRUE)
   ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
   SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent")
-  ADD_SUBDIRECTORY(libevent)
+  # Use EXCLUDE_FROM_ALL to build only if another component
+  # which dependens on libevent is built
+  ADD_SUBDIRECTORY(libevent EXCLUDE_FROM_ALL)
   GET_TARGET_PROPERTY(src libevent SOURCES)
   FOREACH(file ${src})
     SET(LIBEVENT_SOURCES ${LIBEVENT_SOURCES} ${CMAKE_SOURCE_DIR}/libevent/${file})

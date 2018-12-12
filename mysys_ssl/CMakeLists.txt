@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,8 +16,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/mysys_ssl
                     ${CMAKE_SOURCE_DIR}/mysys
-                    ${SSL_INCLUDE_DIRS}
-                    SYSTEM ${BOOST_INCLUDE_DIR})
+                    ${SSL_INCLUDE_DIRS})
 
 IF(SSL_DEFINES)
 ADD_DEFINITIONS(${SSL_DEFINES})
@@ -40,7 +39,6 @@ SET(MYSYS_SSL_SOURCES
     my_md5.cc
     my_rnd.cc
     my_murmur3.cc
-    my_crypt.cc
     ${MYSYS_AES_IMPLEMENTATION}
    )
 
@@ -51,3 +49,8 @@ IF(WIN32 AND NOT WITH_SSL STREQUAL "bundled")
   TARGET_LINK_LIBRARIES(mysys_ssl crypt32)
 ENDIF()
 DTRACE_INSTRUMENT(mysys_ssl)
+
+IF(MSVC)
+   INSTALL_DEBUG_TARGET(mysys_ssl DESTINATION ${INSTALL_LIBDIR}/debug)
+ENDIF()
+

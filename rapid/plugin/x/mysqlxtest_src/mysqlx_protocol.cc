@@ -557,7 +557,6 @@ void XProtocol::authenticate_mysql41(const std::string &user, const std::string 
 
       case Mysqlx::ServerMessages::ERROR:
         throw_server_error(*static_cast<Mysqlx::Error*>(message.get()));
-        break;
 
       default:
         throw Error(CR_MALFORMED_PACKET, "Unexpected message received from server during authentication");
@@ -578,7 +577,6 @@ void XProtocol::authenticate_mysql41(const std::string &user, const std::string 
 
       case Mysqlx::ServerMessages::ERROR:
         throw_server_error(*static_cast<Mysqlx::Error*>(message.get()));
-        break;
 
       case Mysqlx::ServerMessages::NOTICE:
         dispatch_notice(static_cast<Mysqlx::Notice::Frame*>(message.get()));
@@ -620,7 +618,6 @@ void XProtocol::authenticate_plain(const std::string &user, const std::string &p
 
       case Mysqlx::ServerMessages::ERROR:
         throw_server_error(*static_cast<Mysqlx::Error*>(message.get()));
-        break;
 
       case Mysqlx::ServerMessages::NOTICE:
         dispatch_notice(static_cast<Mysqlx::Notice::Frame*>(message.get()));
@@ -836,12 +833,10 @@ Message *XProtocol::recv_payload(const int mid, const std::size_t msglen)
 
     if (!ret_val->IsInitialized())
     {
-      std::string err("Message is not properly initialized: ");
-      err += ret_val->InitializationErrorString();
-
       delete[] mbuf;
       delete ret_val;
-
+      std::string err("Message is not properly initialized: ");
+      err += ret_val->InitializationErrorString();
       throw Error(CR_MALFORMED_PACKET, err);
     }
   }

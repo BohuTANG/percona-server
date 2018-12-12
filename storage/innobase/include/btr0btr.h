@@ -209,7 +209,9 @@ btr_block_get_func(
 	ulint			mode,
 	const char*		file,
 	ulint			line,
+# ifdef UNIV_DEBUG
 	const dict_index_t*	index,
+# endif /* UNIV_DEBUG */
 	mtr_t*		mtr);
 
 # ifdef UNIV_DEBUG
@@ -232,7 +234,7 @@ btr_block_get_func(
 @param mtr mini-transaction handle
 @return the block descriptor */
 #  define btr_block_get(page_id, page_size, mode, index, mtr)	\
-	btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, index, mtr)
+	btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, mtr)
 # endif /* UNIV_DEBUG */
 /** Gets a buffer page and declares its latching order level.
 @param page_id tablespace/page identifier
@@ -679,8 +681,8 @@ btr_index_rec_validate(
 	MY_ATTRIBUTE((warn_unused_result));
 /**************************************************************//**
 Checks the consistency of an index tree.
-@return	DB_SUCCESS if ok, error code if not */
-dberr_t
+@return true if ok */
+bool
 btr_validate_index(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index */

@@ -251,7 +251,7 @@ static void handle_bootstrap_impl(THD *thd)
       break;
     }
 
-    mysql_parse(thd, &parser_state, true);
+    mysql_parse(thd, &parser_state);
 
     bootstrap_error= thd->is_error();
     thd->send_statement_status();

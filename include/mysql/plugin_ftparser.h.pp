@@ -100,17 +100,14 @@ char *thd_security_context(void* thd, char *buffer, size_t length,
 void thd_inc_row_count(void* thd);
 int thd_allow_batch(void* thd);
 void thd_mark_transaction_to_rollback(void* thd, int all);
-enum mysql_trx_stat_type
-{
-  MYSQL_TRX_STAT_IO_READ_BYTES,
-  MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
-  MYSQL_TRX_STAT_LOCK_WAIT_USECS,
-  MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS,
-  MYSQL_TRX_STAT_ACCESS_PAGE_ID
-};
-void thd_report_innodb_stat(void* thd, unsigned long long trx_id,
-                            enum mysql_trx_stat_type type,
-                            unsigned long long value);
+void increment_thd_innodb_stats(void* thd,
+                    unsigned long long trx_id,
+                    long io_reads,
+                    long long io_read,
+                    long io_reads_wait_timer,
+                    long lock_que_wait_timer,
+                    long que_wait_timer,
+                    long page_access);
 unsigned long thd_log_slow_verbosity(const void* thd);
 int thd_opt_slow_log();
 int thd_is_background_thread(const void* thd);
@@ -132,7 +129,6 @@ void thd_set_ha_data(void* thd, const struct handlerton *hton,
 int thd_command(const void* thd);
 long long thd_start_time(const void* thd);
 void thd_kill(unsigned long id);
-int thd_get_ft_query_extra_word_chars(void);
 enum enum_ftparser_mode
 {
   MYSQL_FTPARSER_SIMPLE_MODE= 0,

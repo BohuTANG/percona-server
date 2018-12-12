@@ -598,7 +598,7 @@ PageBulk::release()
 }
 
 /** Start mtr and latch the block */
-dberr_t
+void
 PageBulk::latch()
 {
 	ibool	ret;
@@ -618,20 +618,13 @@ PageBulk::latch()
 
 		m_block = buf_page_get_gen(page_id, page_size, RW_X_LATCH,
 					   m_block, BUF_GET_IF_IN_POOL,
-					   __FILE__, __LINE__, m_mtr, false, &m_err);
-
-		if (m_err != DB_SUCCESS) {
-			return (m_err);
-		}
-
+					   __FILE__, __LINE__, m_mtr);
 		ut_ad(m_block != NULL);
 	}
 
 	buf_block_buf_fix_dec(m_block);
 
 	ut_ad(m_cur_rec > m_page && m_cur_rec < m_heap_top);
-
-	return (m_err);
 }
 
 /** Split a page

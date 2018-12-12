@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 
 #include "gcs_xcom_interface.h"
 #include "synode_no.h"
-#include "site_struct.h"
 
 #include "gcs_xcom_group_member_information.h"
 
@@ -81,11 +80,9 @@ void      do_cb_xcom_receive_global_view(synode_no config_id,
 void      cb_xcom_comms(int status);
 void      cb_xcom_ready(int status);
 void      cb_xcom_exit(int status);
-void      cb_xcom_expel(int status);
-
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 void      cb_xcom_handle_app_snap(blob *gcs_snap);
-int       cb_xcom_socket_accept(int fd, site_def const *xcom_config);
+int       cb_xcom_socket_accept(int fd);
 
 
 // XCom logging callback
@@ -315,10 +312,6 @@ Gcs_xcom_interface::configure(const Gcs_interface_parameters &interface_params)
     validated_params.get_parameter("bootstrap_group");
   const std::string *poll_spin_loops_str=
     validated_params.get_parameter("poll_spin_loops");
-  const std::string *join_attempts_str=
-    validated_params.get_parameter("join_attempts");
-  const std::string *join_sleep_time_str=
-    validated_params.get_parameter("join_sleep_time");
 
   // Mandatory
   if (group_name_str == NULL)
@@ -418,10 +411,6 @@ Gcs_xcom_interface::configure(const Gcs_interface_parameters &interface_params)
     reconfigured |= true;
   }
 
-  xcom_control->set_join_behavior(
-    static_cast<unsigned int>(atoi(join_attempts_str->c_str())),
-    static_cast<unsigned int>(atoi(join_sleep_time_str->c_str())));
-
 end:
   if (error == GCS_NOK || !reconfigured)
   {
@@ -468,23 +457,6 @@ void Gcs_xcom_interface::finalize_xcom()
   }
 }
 
-void Gcs_xcom_interface::make_gcs_leave_group_on_error()
-{
-  Gcs_group_identifier *group_identifier = NULL;
-  map<u_long, Gcs_group_identifier *>::iterator xcom_configured_groups_it;
-  Gcs_xcom_interface *intf =
-      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
-
-  for (xcom_configured_groups_it = m_xcom_configured_groups.begin();
-       xcom_configured_groups_it != m_xcom_configured_groups.end();
-       xcom_configured_groups_it++)
-  {
-    group_identifier = (*xcom_configured_groups_it).second;
-    Gcs_xcom_control *control_if = static_cast<Gcs_xcom_control *>(
-        intf->get_control_session(*group_identifier));
-    control_if->do_leave_view();
-  }
-}
 
 enum_gcs_error Gcs_xcom_interface::finalize()
 {
@@ -600,14 +572,6 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
   if (registered_group == m_group_interfaces.end())
   {
     /*
-      Retrieve some initialization parameters.
-    */
-    const std::string *join_attempts_str=
-      m_initialization_parameters.get_parameter("join_attempts");
-    const std::string *join_sleep_time_str=
-      m_initialization_parameters.get_parameter("join_sleep_time");
-
-    /*
       If the group interfaces do not exist, create and add them to
       the dictionary.
     */
@@ -628,12 +592,7 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
 
     Gcs_xcom_state_exchange_interface *se=
       new Gcs_xcom_state_exchange(group_interface->communication_interface);
-
-    Gcs_xcom_group_management *xcom_management=
-      new Gcs_xcom_group_management(xcom_proxy, vce, group_identifier);
-    group_interface->management_interface= xcom_management;
-
-    Gcs_xcom_control *xcom_control=
+    group_interface->control_interface=
       new Gcs_xcom_control(m_local_node_information,
                            m_xcom_peers,
                            group_identifier,
@@ -642,15 +601,11 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
                            se,
                            vce,
                            m_boot,
-                           m_socket_util,
-                           xcom_management);
-    group_interface->control_interface= xcom_control;
+                           m_socket_util);
 
-    xcom_control->set_join_behavior(
-      static_cast<unsigned int>(atoi(join_attempts_str->c_str())),
-      static_cast<unsigned int>(atoi(join_sleep_time_str->c_str()))
-    );
-
+    group_interface->management_interface=
+                                      new Gcs_xcom_group_management(xcom_proxy,
+                                                                    group_identifier);
 
     // Store the created objects for later deletion
     group_interface->vce= vce;
@@ -806,7 +761,6 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
   ::set_xcom_run_cb(cb_xcom_ready);
   ::set_xcom_comms_cb(cb_xcom_comms);
   ::set_xcom_exit_cb(cb_xcom_exit);
-  ::set_xcom_expel_cb(cb_xcom_expel);
   ::set_xcom_socket_accept_cb(cb_xcom_socket_accept);
 
   const std::string *wait_time_str=
@@ -1490,31 +1444,6 @@ void cb_xcom_exit(int status MY_ATTRIBUTE((unused)))
     xcom_proxy->xcom_signal_exit();
 }
 
-void do_cb_xcom_expel() {
-  Gcs_xcom_interface *intf =
-      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
-  if (intf) {
-    intf->make_gcs_leave_group_on_error();
-  }
-}
-
-/*
-  Callback function used by XCom to signal that a node has left the group
-  because of a `die_op` or a view where the node does not belong to.
-*/
-void cb_xcom_expel(int status MY_ATTRIBUTE((unused))) {
-  Gcs_xcom_notification *notification =
-      new Expel_notification(do_cb_xcom_expel);
-
-  bool scheduled = gcs_engine->push(notification);
-  if (!scheduled) {
-    MYSQL_GCS_LOG_DEBUG(
-        "Tried to enqueue an expel request but the member is about to stop.")
-    delete notification;
-  } else {
-    MYSQL_GCS_LOG_TRACE("Expel view notification: " << notification)
-  }
-}
 
 void cb_xcom_logger(int level, const char *message)
 {
@@ -1522,12 +1451,12 @@ void cb_xcom_logger(int level, const char *message)
 }
 
 
-int cb_xcom_socket_accept(int fd, site_def const *xcom_config)
+int cb_xcom_socket_accept(int fd)
 {
   Gcs_xcom_interface *intf=
     static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
 
   const Gcs_ip_whitelist& wl= intf->get_ip_whitelist();
 
-  return wl.shall_block(fd, xcom_config) ? 0 : 1;
+  return wl.shall_block(fd) ? 0 : 1;
 }

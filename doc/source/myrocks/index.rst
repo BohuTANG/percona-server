@@ -22,6 +22,9 @@ if your workload uses fast storage, such as SSD:
 * Provides more storage endurance
 * Ensures better IO capacity
 
+.. warning:: Percona MyRocks is currently experimental
+   and not recommended for production.
+
 .. toctree::
    :maxdepth: 1
 

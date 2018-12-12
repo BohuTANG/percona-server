@@ -63,10 +63,15 @@ set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the first page (page_no=0) of the user tablespace
 --echo # full of zeroes.
---let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
---let PAGE_NUM="0"
---let ALL_ZEROES=1
---source corrupt_page.inc
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'});
+close FILE;
+EOF
 
 --source include/start_mysqld.inc
 
@@ -100,9 +105,15 @@ set global innodb_buf_flush_list_now = 1;
 --source include/no_checkpoint_end.inc
 
 --echo # Corrupt the first page (page_no=0) of the user tablespace.
---let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
---let PAGE_NUM="0"
---source corrupt_page.inc
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'}/2);
+close FILE;
+EOF
 
 --source include/start_mysqld.inc
 
@@ -136,10 +147,16 @@ set global innodb_buf_flush_list_now = 1;
 --source include/no_checkpoint_end.inc
 
 --echo # Make the 2nd page (page_no=1) of the tablespace all zeroes.
---let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
---let PAGE_NUM=1
---let ALL_ZEROES=1
---source corrupt_page.inc
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'}, SEEK_SET);
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'});
+close FILE;
+EOF
 
 --source include/start_mysqld.inc
 
@@ -173,9 +190,16 @@ set global innodb_buf_flush_list_now = 1;
 --source include/no_checkpoint_end.inc
 
 --echo # Corrupt the 2nd page (page_no=1) of the user tablespace.
---let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
---let PAGE_NUM=1
---source corrupt_page.inc
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'}, SEEK_SET);
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'}/2);
+close FILE;
+EOF
 
 --source include/start_mysqld.inc
 
@@ -209,10 +233,15 @@ set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the first page (page_no=0) of the system tablespace
 --echo # all zeroes.
---let IBD_FILE=$MYSQLD_DATADIR/ibdata1
---let PAGE_NUM="0"
---let ALL_ZEROES=1
---source corrupt_page.inc
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}ibdata1";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'});
+close FILE;
+EOF
 
 --source include/start_mysqld.inc
 
@@ -240,9 +269,15 @@ set global innodb_buf_flush_list_now = 1;
 --source include/kill_mysqld.inc
 
 --echo # Corrupt the first page (page_no=0) of the system tablespace.
---let IBD_FILE=$MYSQLD_DATADIR/ibdata1
---let PAGE_NUM="0"
---source corrupt_page.inc
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}ibdata1";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'}/2);
+close FILE;
+EOF
 
 --source include/start_mysqld.inc
 
@@ -271,10 +306,16 @@ set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the 2nd page (page_no=1) of the system tablespace
 --echo # all zeroes.
---let IBD_FILE=$MYSQLD_DATADIR/ibdata1
---let PAGE_NUM=1
---let ALL_ZEROES=1
---source corrupt_page.inc
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}ibdata1";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'}, SEEK_SET);
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'});
+close FILE;
+EOF
 
 --source include/start_mysqld.inc
 
@@ -303,9 +344,16 @@ set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the 2nd page (page_no=1) of the system tablespace
 --echo # all zeroes.
---let IBD_FILE=$MYSQLD_DATADIR/ibdata1
---let PAGE_NUM=1
---source corrupt_page.inc
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}ibdata1";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'}, SEEK_SET);
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'}/2);
+close FILE;
+EOF
 
 --source include/start_mysqld.inc
 

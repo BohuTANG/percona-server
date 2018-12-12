@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -385,7 +385,8 @@ rtr_pcur_getnext_from_path(
 		if (mode != PAGE_CUR_RTREE_INSERT
 		    && mode != PAGE_CUR_RTREE_LOCATE
 		    && mode >= PAGE_CUR_CONTAIN
-		    && btr_cur->rtr_info->need_prdt_lock) {
+		    && btr_cur->rtr_info->need_prdt_lock
+		    && found) {
 			lock_prdt_t	prdt;
 
 			trx_t*		trx = thr_get_trx(
@@ -1546,7 +1547,7 @@ rtr_copy_buf(
 	will be copied. It is also undefined what will happen with the
 	newly memcpy()ed mutex if the source mutex was acquired by
 	(another) thread while it was copied. */
-	new (&matches->block.page) buf_page_t(block->page);
+	memcpy(&matches->block.page, &block->page, sizeof(buf_page_t));
 	matches->block.frame = block->frame;
 #ifndef UNIV_HOTBACKUP
 	matches->block.unzip_LRU = block->unzip_LRU;

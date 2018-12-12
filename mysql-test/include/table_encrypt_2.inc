@@ -1,7 +1,7 @@
 # InnoDB transparent tablespace data encryption
 # This test case will test basic encryption support features.
 
-eval CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="$encryption_type";
+CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
 
 DROP TABLE t1;
 
@@ -20,7 +20,7 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
 # Create a table with encryption
-eval CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="$encryption_type" ENGINE = InnoDB;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(0, "aaaaa");
@@ -55,7 +55,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 DROP TABLE t1;
 
 # Crash/recovery test.
-eval CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="$encryption_type" ENGINE = InnoDB;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
@@ -86,7 +86,7 @@ SET block_encryption_mode = 'aes-256-cbc';
 --disable_warnings
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
-eval CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = '$encryption_type' ENGINE = InnoDB;
+CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = 'Y' ENGINE = InnoDB;
 --enable_warnings
 #
 INSERT INTO tde_db.t1 VALUES(0, 'abc');

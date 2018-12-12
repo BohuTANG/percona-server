@@ -91,9 +91,8 @@ separately committed mini-transaction, because in crash recovery, the
 free bits could momentarily be set too high. */
 
 /******************************************************************//**
-Creates the insert buffer data structure at a database startup.
-@return DB_SUCCESS or failure */
-dberr_t
+Creates the insert buffer data structure at a database startup. */
+void
 ibuf_init_at_db_start(void);
 /*=======================*/
 /*********************************************************************//**

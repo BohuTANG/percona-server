@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,22 +18,14 @@
 #include "probes_mysql.h"
 #include "ha_blackhole.h"
 #include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
-#include "rpl_rli.h" // THD::rli_slave::rows_query_ev
 
 static PSI_memory_key bh_key_memory_blackhole_share;
 
-static inline bool is_slave_applier(const THD &thd)
+static bool is_slave_applier(THD *thd)
 {
-  return thd.system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-    thd.system_thread == SYSTEM_THREAD_SLAVE_WORKER;
+  return thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+    thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
-
-static inline bool pretend_for_slave(const THD &thd)
-{
-  return is_slave_applier(thd) &&
-    (thd.rli_slave->rows_query_ev || thd.query().str == NULL);
-}
-
 
 /* Static declarations for handlerton */
 
@@ -128,7 +120,7 @@ int ha_blackhole::update_row(const uchar *old_data, uchar *new_data)
 {
   DBUG_ENTER("ha_blackhole::update_row");
   THD *thd= ha_thd();
-  if (pretend_for_slave(*thd))
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -137,7 +129,7 @@ int ha_blackhole::delete_row(const uchar *buf)
 {
   DBUG_ENTER("ha_blackhole::delete_row");
   THD *thd= ha_thd();
-  if (pretend_for_slave(*thd))
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -156,7 +148,7 @@ int ha_blackhole::rnd_next(uchar *buf)
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        TRUE);
   THD *thd= ha_thd();
-  if (pretend_for_slave(*thd))
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -189,7 +181,7 @@ int ha_blackhole::info(uint flag)
 {
   DBUG_ENTER("ha_blackhole::info");
 
-  new (&stats) ha_statistics;
+  memset(&stats, 0, sizeof(stats));
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= 1;
   DBUG_RETURN(0);
@@ -247,7 +239,7 @@ int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (pretend_for_slave(*thd))
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -265,7 +257,7 @@ int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read_idx");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (pretend_for_slave(*thd))
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -282,7 +274,7 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read_last");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (pretend_for_slave(*thd))
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;

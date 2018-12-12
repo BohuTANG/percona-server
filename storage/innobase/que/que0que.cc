@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -205,6 +205,9 @@ que_thr_end_lock_wait(
 {
 	que_thr_t*	thr;
 	ibool		was_active;
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	now;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(trx));
@@ -221,7 +224,12 @@ que_thr_end_lock_wait(
 
 	que_thr_move_to_run_state(thr);
 
-	trx->stats.stop_lock_wait(*trx);
+	if (UNIV_UNLIKELY(trx->take_stats)) {
+		ut_usectime(&sec, &ms);
+		now = (ib_uint64_t)sec * 1000000 + ms;
+		trx->lock_que_wait_timer
+			+= (ulint)(now - trx->lock_que_wait_ustarted);
+	}
 
 	trx->lock.que_state = TRX_QUE_RUNNING;
 
@@ -487,17 +495,20 @@ que_graph_free_recursive(
 	case QUE_NODE_UPDATE:
 		upd = static_cast<upd_node_t*>(node);
 
+		DBUG_PRINT("que_graph_free_recursive",
+			   ("QUE_NODE_UPDATE: %p, processed_cascades: %p",
+			    upd, upd->processed_cascades));
+
 		if (upd->in_mysql_interface) {
 
 			btr_pcur_free_for_mysql(upd->pcur);
 			upd->in_mysql_interface = FALSE;
 		}
 
-		que_graph_free_recursive(upd->cascade_node);
-
-		if (upd->cascade_heap) {
+		if (upd->cascade_top) {
 			mem_heap_free(upd->cascade_heap);
 			upd->cascade_heap = NULL;
+			upd->cascade_top = false;
 		}
 
 		que_graph_free_recursive(upd->select);

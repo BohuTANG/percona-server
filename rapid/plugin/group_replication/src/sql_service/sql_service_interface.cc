@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,44 @@
 
 #include "sql_service_interface.h"
 #include "plugin_log.h"
-#include <mysqld_error.h>
+
+/* keep it in sync with enum_server_command in my_command.h */
+const LEX_STRING command_name[]={
+  { C_STRING_WITH_LEN("Sleep") },
+  { C_STRING_WITH_LEN("Quit") },
+  { C_STRING_WITH_LEN("Init DB") },
+  { C_STRING_WITH_LEN("Query") },
+  { C_STRING_WITH_LEN("Field List") },
+  { C_STRING_WITH_LEN("Create DB") },
+  { C_STRING_WITH_LEN("Drop DB") },
+  { C_STRING_WITH_LEN("Refresh") },
+  { C_STRING_WITH_LEN("Shutdown") },
+  { C_STRING_WITH_LEN("Statistics") },
+  { C_STRING_WITH_LEN("Processlist") },
+  { C_STRING_WITH_LEN("Connect") },
+  { C_STRING_WITH_LEN("Kill") },
+  { C_STRING_WITH_LEN("Debug") },
+  { C_STRING_WITH_LEN("Ping") },
+  { C_STRING_WITH_LEN("Time") },
+  { C_STRING_WITH_LEN("Delayed insert") },
+  { C_STRING_WITH_LEN("Change user") },
+  { C_STRING_WITH_LEN("Binlog Dump") },
+  { C_STRING_WITH_LEN("Table Dump") },
+  { C_STRING_WITH_LEN("Connect Out") },
+  { C_STRING_WITH_LEN("Register Slave") },
+  { C_STRING_WITH_LEN("Prepare") },
+  { C_STRING_WITH_LEN("Execute") },
+  { C_STRING_WITH_LEN("Long Data") },
+  { C_STRING_WITH_LEN("Close stmt") },
+  { C_STRING_WITH_LEN("Reset stmt") },
+  { C_STRING_WITH_LEN("Set option") },
+  { C_STRING_WITH_LEN("Fetch") },
+  { C_STRING_WITH_LEN("Daemon") },
+  { C_STRING_WITH_LEN("Binlog Dump GTID") },
+  { C_STRING_WITH_LEN("Reset Connection") },
+  { C_STRING_WITH_LEN("Error") }  // Last command number
+};
+
 
 /* Sql_service_interface constructor */
 Sql_service_interface::Sql_service_interface(enum cs_text_or_binary cs_txt_bin,
@@ -37,28 +74,6 @@ Sql_service_interface::~Sql_service_interface()
     srv_session_deinit_thread();
 }
 
-static void srv_session_error_handler(void *ctx, unsigned int sql_errno,
-                                      const char *err_msg)
-{
-  switch (sql_errno)
-  {
-    case ER_CON_COUNT_ERROR:
-      log_message(MY_ERROR_LEVEL,
-                 "Can't establish a internal server connection to "
-                 "execute plugin operations since the server "
-                 "does not have available connections, please "
-                 "increase @@GLOBAL.MAX_CONNECTIONS. Server error: %i.",
-                 sql_errno);
-      break;
-    default:
-      log_message(MY_ERROR_LEVEL,
-                 "Can't establish a internal server connection to "
-                 "execute plugin operations. Server error: %i. "
-                 "Server error message: %s",
-                 sql_errno, err_msg);
-  }
-}
-
 int Sql_service_interface::open_session()
 {
   DBUG_ENTER("Sql_service_interface::open_session");
@@ -67,7 +82,7 @@ int Sql_service_interface::open_session()
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT))
   {
-    m_session= srv_session_open(srv_session_error_handler, NULL);
+    m_session= srv_session_open(NULL, NULL);
     if (m_session == NULL)
       DBUG_RETURN(1); /* purecov: inspected */
   }
@@ -97,12 +112,9 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr)
       /* purecov: end */
     }
 
-    m_session= srv_session_open(srv_session_error_handler, NULL);
+    m_session= srv_session_open(NULL, NULL);
     if (m_session == NULL)
-    {
-      srv_session_deinit_thread();
-      return 1;
-    }
+      return 1; /* purecov: inspected */
   }
   else
   {
@@ -120,14 +132,13 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
                                              enum enum_server_command cmd_type)
 {
   DBUG_ENTER("Sql_service_interface::execute_internal");
-  long err= 0;
+  int err= 0;
 
   if (!m_session)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. "
-                "The internal server communication session is not initialized",
-                cmd.com_query.query);
+    log_message(MY_ERROR_LEVEL, "Error, the internal server communication "
+                                "session is not initialized.");
     DBUG_RETURN(-1);
     /* purecov: end */
   }
@@ -135,9 +146,9 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
   if (is_session_killed(m_session))
   {
     /* purecov: begin inspected */
-    log_message(MY_INFORMATION_LEVEL, "Error running internal SQL query: %s. "
-                "The internal server session was killed or server is shutting "
-                "down.", cmd.com_query.query);
+    log_message(MY_INFORMATION_LEVEL, "Error, the internal server communication "
+                                      "session is killed or server is shutting"
+                                      " down.");
     DBUG_RETURN(-1);
     /* purecov: end */
   }
@@ -151,34 +162,12 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
                                   cs_txt_bin, ctx))
   {
     /* purecov: begin inspected */
-    err= rset->sql_errno();
-
-    if (err != 0)
-    {
-      log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. Got "
-                  "SQL error: %s(%d)", cmd.com_query.query,
-                  rset->err_msg().c_str(), rset->sql_errno());
-    }
-    else
-    {
-      if (is_session_killed(m_session) && rset->get_killed_status())
-      {
-        log_message(MY_INFORMATION_LEVEL, "Error running internal SQL query: "
-                    "%s. The internal server session was killed or server is "
-                    "shutting down.", cmd.com_query.query);
-        err= -1;
-      }
-      else
-      {
-        /* sql_errno is empty and session is alive */
-        err= -2;
-        log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. "
-                    "Internal failure.", cmd.com_query.query);
-      }
-    }
+    log_message(MY_ERROR_LEVEL, "Error running internal command type: %s."
+                                "Got error: %s(%d)", command_name[cmd_type].str,
+                                rset->sql_errno(), rset->err_msg().c_str());
 
     delete ctx;
-    DBUG_RETURN(err);
+    DBUG_RETURN(rset->sql_errno());
     /* purecov: end */
   }
 

@@ -191,7 +191,7 @@ void Client::handle_message(Request &request)
         }
         break;
       }
-      // Fall through.
+      // fallthrough
 
     default:
       // invalid message at this time

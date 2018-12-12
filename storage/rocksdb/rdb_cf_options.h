@@ -46,9 +46,8 @@ public:
   Rdb_cf_options &operator=(const Rdb_cf_options &) = delete;
   Rdb_cf_options() = default;
 
-  /* bool true return indicates cf_name was found */
-  MY_NODISCARD bool get(const std::string &cf_name,
-                        rocksdb::ColumnFamilyOptions *const opts);
+  void get(const std::string &cf_name,
+           rocksdb::ColumnFamilyOptions *const opts);
 
   void update(const std::string &cf_name, const std::string &cf_options);
 
@@ -65,12 +64,9 @@ public:
   static const rocksdb::Comparator *
   get_cf_comparator(const std::string &cf_name);
 
-  std::shared_ptr<rocksdb::MergeOperator>
-  get_cf_merge_operator(const std::string &cf_name);
-
-  /* bool true return indicates cf_name was found, otherwise default */
-  bool get_cf_options(const std::string &cf_name,
-                      rocksdb::ColumnFamilyOptions *const opts);
+  void get_cf_options(const std::string &cf_name,
+                      rocksdb::ColumnFamilyOptions *const opts)
+      MY_ATTRIBUTE((__nonnull__));
 
   static bool parse_cf_options(const std::string &cf_options,
     Name_to_config_t *option_map);

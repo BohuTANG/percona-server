@@ -104,9 +104,8 @@ private:
   /*
    Methods to act upon members after a on_view_change(...) is called
    */
-  int update_group_info_manager(const Gcs_view& new_view,
+  void update_group_info_manager(const Gcs_view& new_view,
                                  const Exchanged_data &exchanged_data,
-                                 bool is_joining,
                                  bool is_leaving)
                                  const;
   void handle_joining_members(const Gcs_view& new_view,
@@ -174,9 +173,7 @@ private:
     std::vector<Group_member_info*>* all_members_info) const;
 
   int
-  process_local_exchanged_data(const Exchanged_data &exchanged_data,
-                               bool is_joining)
-                               const;
+  process_local_exchanged_data(const Exchanged_data &exchanged_data) const;
 
   /**
     Verifies if a certain Vector of Member Ids contains a given member id.

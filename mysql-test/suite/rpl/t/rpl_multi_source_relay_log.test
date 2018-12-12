@@ -1,9 +1,7 @@
 --echo #########################################################################
 --echo # Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
---echo # - deletes all relay log files of named channels and reintializes
---echo # them.
+--echo # - deletes all relay log files of named channels.
 --echo # - For default channel, it restart the relay log from .000001
---echo # - For named channel, it restart the relay log from ch.000001
 --echo #########################################################################
 # The test doesn't relate to binlog format, so it is just tested on mixed mode.
 #Skip on group replication runs
@@ -27,7 +25,7 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 --echo #
 eval RESET SLAVE FOR CHANNEL "ch1";
 
-# all files of "ch1" are deleted and recreated.
+# all files of "ch1" are removed
 --list_files $datadir *ch1*
 
 --echo #
@@ -38,7 +36,7 @@ eval RESET SLAVE FOR CHANNEL "ch1";
 --enable_warnings
 RESET SLAVE;
 
-# all files of "ch2" are deleted and recreated.
+# all files of "ch2" are removed
 --list_files $datadir *ch2*
 
 --echo #
@@ -52,8 +50,10 @@ RESET SLAVE;
 --file_exists $relay_log_basename.000001
 
 --echo #
---echo # Relay log files for all channels are recreated automatically.
+--echo # Recreate channels "ch1" and "ch2" files again.
 --echo #
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "ch1";
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch2";
 
 # Check that files exist.
 --let $relay_log_base_name= `SELECT @@GLOBAL.relay_log_basename`

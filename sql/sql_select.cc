@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2343,22 +2343,11 @@ bool error_if_full_join(JOIN *join)
   for (uint i= 0; i < join->primary_tables; i++)
   {
     JOIN_TAB *const tab= join->best_ref[i];
-    THD *thd = join->thd;
 
-    /*
-      Safe update error isn't returned if:
-      1) It is  an EXPLAIN statement OR
-      2) Table is not the target.
-
-      Append the first warning (if any) to the error message. Allows the user
-      to understand why index access couldn't be chosen.
-    */
-
-    if (!thd->lex->is_explain() && tab->table()->pos_in_table_list->updating &&
-        tab->type() == JT_ALL)
+    if (tab->type() == JT_ALL && (!tab->quick()))
     {
-      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
-               thd->get_stmt_da()->get_first_condition_message());
+      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
+                 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return true;
     }
   }
@@ -2385,7 +2374,7 @@ void JOIN_TAB::cleanup()
   else
     qs_cleanup();
 
-  TRASH(static_cast<void*>(this), sizeof(*this));
+  TRASH(this, sizeof(*this));
 }
 
 
@@ -2419,7 +2408,7 @@ void QEP_TAB::cleanup()
     op->mem_free();
   }
 
-  TRASH(static_cast<void*>(this), sizeof(*this));
+  TRASH(this, sizeof(*this));
 }
 
 
@@ -3563,13 +3552,11 @@ bool JOIN::make_tmp_tables_info()
     /*
       Create temporary table on first execution of this join.
       (Will be reused if this is a subquery that is executed several times.)
-      Don't use tmp table grouping for json aggregate funcs as it's
-      very ineffective.
     */
     init_items_ref_array();
 
     ORDER_with_src tmp_group;
-    if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP) && !with_json_agg)
+    if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP))
       tmp_group= group_list;
       
     tmp_table_param.hidden_field_count= 

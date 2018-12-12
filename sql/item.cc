@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4838,7 +4838,6 @@ Item_copy_json::save_in_field_inner(Field *field, bool no_conversions)
   }
   else
   {
-    str_value.length(0);
     if (m_value->to_string(&str_value, true, item_name.ptr()))
       return set_field_to_null(field);        /* purecov: inspected */
     return save_str_value_in_field(field, &str_value);
@@ -9092,7 +9091,7 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == INSERT_VALUE_ITEM &&
-    (down_cast<const Item_insert_value *>(item))->arg->eq(arg, binary_cmp);
+    ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
 }
 
 
@@ -9372,7 +9371,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     {
       Json_wrapper wr;
       if (item->val_json(&wr))
-        return true;
+        break;
       if (item->null_value)
         new_item= new Item_null(item->item_name);
       else
@@ -9966,15 +9965,18 @@ bool Item_cache_json::cache_value()
   if (!example || !m_value)
     return false;
 
-  value_cached= !json_value(&example, 0, m_value);
-  null_value= example->null_value;
+  if (json_value(&example, 0, m_value))
+    return false;
 
-  if (value_cached && !null_value)
+  null_value= example->null_value;
+  value_cached= true;
+
+  if (!null_value)
   {
     m_value->to_dom(); // the row buffer might change, so need own copy
   }
 
-  return value_cached;
+  return true;
 }
 
 
@@ -10519,8 +10521,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   DBUG_PRINT("info:", ("in type %d len %d, dec %d",
                        get_real_type(item),
                        item->max_length, item->decimals));
-  fld_type= real_type_to_type(Field::field_type_merge(fld_type,
-                                                      get_real_type(item)));
+  fld_type= Field::field_type_merge(fld_type, get_real_type(item));
   {
     int item_decimals= item->decimals;
     /* fix variable decimals which always is NOT_FIXED_DEC */
@@ -10530,7 +10531,6 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
-    collation.set_numeric();
     decimals= min<int>(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
     int item_int_part= item->decimal_int_part();
     int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
@@ -10697,13 +10697,12 @@ uint32 Item_type_holder::display_length(Item *item)
   of UNION result.
 
   @param table  temporary table for which we create fields
-  @param strict If strict mode is on
 
   @return
     created field
 */
 
-Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict)
+Field *Item_type_holder::make_field_by_type(TABLE *table)
 {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
@@ -10720,7 +10719,7 @@ Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict)
                           enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
-    break;
+    return field;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(enum_set_typelib);
     field= new Field_set((uchar *) 0, max_length, null_ptr, 0,
@@ -10729,26 +10728,13 @@ Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict)
                          enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
-    break;
+    return field;
   case MYSQL_TYPE_NULL:
-    field= make_string_field(table);
-    break;
+    return make_string_field(table);
   default:
-    field= tmp_table_field_from_field_type(table, 0);
     break;
   }
-  if (strict &&
-      field && field->is_temporal_with_date() && !field->real_maybe_null())
-  {
-    /*
-      This function is used for CREATE SELECT UNION [ALL] ... , and, if
-      expression is non-nullable, the resulting column is declared
-      non-nullable with a default of 0. However, in strict mode, for dates,
-      0000-00-00 is invalid; in that case, don't give any default.
-    */
-    field->flags|= NO_DEFAULT_VALUE_FLAG;
-  }
-  return field;
+  return tmp_table_field_from_field_type(table, 0);
 }
 
 

@@ -36,12 +36,8 @@ an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@retval DB_SUCCESS if the page was read and is not corrupted,
-@retval DB_PAGE_CORRUPTED if page based on checksum check is corrupted,
-@retval DB_DECRYPTION_FAILED if page post encryption checksum matches but
-after decryption normal page checksum does not match.
-@retval DB_TABLESPACE_DELETED if tablespace .ibd file is missing */
-dberr_t
+@return TRUE if page has been read in, FALSE in case of failure */
+ibool
 buf_read_page(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,

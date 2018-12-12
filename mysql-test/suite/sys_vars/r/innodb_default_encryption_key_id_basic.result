@@ -1,3 +1,0 @@
-SELECT @@global.innodb_default_encryption_key_id;
-@@global.innodb_default_encryption_key_id
-0

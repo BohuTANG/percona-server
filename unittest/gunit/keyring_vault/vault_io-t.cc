@@ -1,7 +1,6 @@
 #include <my_global.h>
 #include <gtest/gtest.h>
 #include <fstream>
-#include <boost/scope_exit.hpp>
 #include "mock_logger.h"
 #include "vault_io.h"
 #include "incorrect_vault_key.h"
@@ -10,10 +9,6 @@
 #include "generate_credential_file.h"
 #include "uuid.h"
 #include "vault_mount.h"
-#include "test_utils.h"
-#include "i_keys_container.h"
-
-boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring
@@ -36,6 +31,7 @@ namespace keyring__vault_io_unittest
   static std::string key_2 = (uuid + "key2");
   static const char *key_1_id = key_1.c_str();
   static const char *key_2_id = key_2.c_str();
+  CURL *curl = NULL;
   std::string credential_file_url = "./keyring_vault.conf";
   ILogger *logger;
 
@@ -44,7 +40,8 @@ namespace keyring__vault_io_unittest
   protected:
     virtual void SetUp()
     {
-      vault_curl = new Vault_curl(logger, 0);
+      ASSERT_TRUE(curl != NULL);
+      vault_curl = new Vault_curl(logger, curl);
       vault_parser = new Vault_parser(logger);
     }
 
@@ -58,8 +55,6 @@ namespace keyring__vault_io_unittest
     std::string credential_file_name("./some_funny_name");
     Vault_io vault_io(logger, vault_curl, vault_parser);
     remove(credential_file_name.c_str());
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("File './some_funny_name' not found (Errcode: 2 - No such file or directory)")));
     EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
       log(MY_ERROR_LEVEL, StrEq("Could not open file with credentials.")));
     EXPECT_TRUE(vault_io.init(&credential_file_name));
@@ -145,7 +140,7 @@ namespace keyring__vault_io_unittest
     // *****
 
     // Now fetch two keys with separate Vault_io
-    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, curl);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io_for_fetching(logger, vault_curl2, vault_parser2);
     EXPECT_FALSE(vault_io_for_fetching.init(&credential_file_url));
@@ -200,7 +195,7 @@ namespace keyring__vault_io_unittest
     // *****
 
     // Now fetch two keys with separate Vault_io - incorrect key should have been ignored
-    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, curl);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io_for_fetching(logger, vault_curl2, vault_parser2);
 
@@ -288,7 +283,7 @@ namespace keyring__vault_io_unittest
     key_to_remove.set_key_operation(REMOVE_KEY);
     EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
 
-    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, curl);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io2(logger, vault_curl2, vault_parser2);
     EXPECT_FALSE(vault_io2.init(&credential_file_url));
@@ -305,7 +300,6 @@ namespace keyring__vault_io_unittest
     MOCK_METHOD2(write_key, bool(const Vault_key &key, Secure_string *response));
     MOCK_METHOD2(read_key, bool(const Vault_key &key, Secure_string *response));
     MOCK_METHOD2(delete_key, bool(const Vault_key &key, Secure_string *response));
-    MOCK_METHOD1(set_timeout, void(uint timeout));
   };
 
   TEST_F(Vault_io_test, ErrorFromVaultCurlOnVaultIOInit)
@@ -611,26 +605,17 @@ namespace keyring__vault_io_unittest
 int main(int argc, char **argv) {
 
   ::testing::InitGoogleTest(&argc, argv);
-  MY_INIT(argv[0]);
-  my_testing::setup_server_for_unit_tests();
   curl_global_init(CURL_GLOBAL_DEFAULT);
 
   //create unique secret mount point for this test suite
-  CURL *curl = curl_easy_init();
-  if (curl == NULL)
+  keyring__vault_io_unittest::curl = curl_easy_init();
+  if (keyring__vault_io_unittest::curl == NULL)
   {
     std::cout << "Could not initialize CURL session" << std::endl;
-    curl_global_cleanup();
     return 1; 
   }
-  BOOST_SCOPE_EXIT(&curl)
-  {
-    curl_easy_cleanup(curl);
-    curl_global_cleanup();
-  } BOOST_SCOPE_EXIT_END
-  
   keyring__vault_io_unittest::logger = new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(curl, keyring__vault_io_unittest::logger);
+  keyring::Vault_mount vault_mount(keyring__vault_io_unittest::curl, keyring__vault_io_unittest::logger);
   if (generate_credential_file(keyring__vault_io_unittest::credential_file_url, CORRECT, keyring__vault_io_unittest::uuid))
   {
     std::cout << "Could not generate credential file" << std::endl;
@@ -653,8 +638,8 @@ int main(int argc, char **argv) {
   {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
+  curl_easy_cleanup(keyring__vault_io_unittest::curl);
+  curl_global_cleanup();
   delete keyring__vault_io_unittest::logger;
-  my_testing::teardown_server_for_unit_tests();
-
   return ret;
 }

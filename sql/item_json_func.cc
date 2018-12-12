@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,13 +17,9 @@
 /* JSON Function items used by mysql */
 
 #include "item_json_func.h"
-
-#include <memory>               // std::auto_ptr
-
 #include "derror.h"             // ER_THD
 #include "mysqld.h"             // key_memory_JSON, current_thd
 #include "sql_class.h"          // THD
-#include "sql_exception_handler.h"              // handle_std_exception
 #include "item_cmpfunc.h"       // Item_func_like
 #include "json_dom.h"
 #include "json_path.h"
@@ -208,12 +204,25 @@ static enum_field_types get_normalized_field_type(Item *arg)
 }
 
 
-bool get_json_string(Item *arg_item,
-                     String *value,
-                     String *utf8_res,
-                     const char *func_name,
-                     const char **safep,
-                     size_t *safe_length)
+/**
+  Helper method for Item_func_json_* methods. Check whether an argument
+  can be converted to a utf8mb4 string.
+
+  @param[in]  arg_item    An argument Item
+  @param[out] value       Where to materialize the arg_item's string value
+  @param[out] utf8_res    Buffer for use by ensure_utf8mb4.
+  @param[in]  func_name   Name of the user-invoked JSON_ function
+  @param[out] safep       String pointer after any relevant conversion
+  @param[out] safe_length Corresponding string length
+
+  @returns true if the Item is not a utf8mb4 string
+*/
+static bool get_json_string(Item *arg_item,
+                            String *value,
+                            String *utf8_res,
+                            const char *func_name,
+                            const char **safep,
+                            size_t *safe_length)
 {
   String *const res= arg_item->val_str(value);
 
@@ -326,6 +335,69 @@ static bool json_is_valid(Item **args,
   }
 }
 
+
+
+#define CATCH_ALL(funcname, expr) \
+  catch (const std::bad_alloc &e)\
+  {\
+    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::domain_error &e)\
+  {\
+    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::length_error &e)\
+  {\
+    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::invalid_argument &e)\
+  {\
+    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::out_of_range &e)\
+   {\
+    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::overflow_error &e)\
+  {\
+    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::range_error &e)\
+  {\
+    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::underflow_error &e)\
+  {\
+    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::logic_error &e)\
+  {\
+    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::runtime_error &e)\
+  {\
+    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (const std::exception &e)\
+  {\
+    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), (funcname));\
+    expr;\
+  }\
+  catch (...)\
+  {\
+    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
+    expr;\
+  }
 
 /**
   Helper method for Item_func_json_* methods. Assumes that the caller
@@ -558,6 +630,9 @@ Item_json_func::save_in_field_inner(Field *field, bool no_conversions)
 longlong Item_func_json_valid::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+  bool result= 1;
+  null_value= false;
+
   try
   {
     bool ok;
@@ -566,20 +641,21 @@ longlong Item_func_json_valid::val_int()
       return error_int();
     }
 
-    null_value= args[0]->null_value;
-
-    if (null_value || !ok)
+    if (!ok)
+    {
+      null_value= false;
       return 0;
+    }
 
-    return 1;
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_int();
-    /* purecov: end */
-  }
+    if (args[0]->null_value)
+    {
+      null_value= true;
+      return 0;
+    }
+
+  } CATCH_ALL("json_valid", result= 0)        /* purecov: inspected */
+
+  return result;
 }
 
 
@@ -871,14 +947,7 @@ longlong Item_func_json_contains::val_int()
       null_value= false;
       return ret;
     }
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_int();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_contains", return error_int()) /* purecov: inspected */
 }
 
 
@@ -966,14 +1035,7 @@ longlong Item_func_json_contains_path::val_int()
       }
     }
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_int();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_contains_path", return error_int()) /* purecov: inspected */
 
   return result;
 }
@@ -1113,7 +1175,7 @@ static uint opaque_index(enum_field_types field_type)
   return 1 + static_cast<uint>(Json_dom::J_ERROR) + offset;
 }
 
-String *Item_func_json_type::val_str(String*)
+String *Item_func_json_type::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -1138,14 +1200,7 @@ String *Item_func_json_type::val_str(String*)
     if (m_value.append(Json_dom::json_type_string_map[typename_idx]))
       return error_str();                     /* purecov: inspected */
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_str();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_type", return error_str()) /* purecov: inspected */
 
   null_value= false;
   return &m_value;
@@ -1213,6 +1268,8 @@ longlong Item_json_func::val_int()
 
 double Item_json_func::val_real()
 {
+  char buff[MAX_FIELD_WIDTH];
+  String str(buff, sizeof(buff), &my_charset_utf8mb4_bin);
   Json_wrapper wr;
   if (val_json(&wr))
     return 0.0;
@@ -1225,7 +1282,10 @@ double Item_json_func::val_real()
 
 my_decimal *Item_json_func::val_decimal(my_decimal *decimal_value)
 {
+  char buff[MAX_FIELD_WIDTH];
+  String str(buff, sizeof(buff), &my_charset_utf8mb4_bin);
   Json_wrapper wr;
+
   if (val_json(&wr))
   {
     my_decimal_set_zero(decimal_value);
@@ -1681,19 +1741,30 @@ bool get_json_atom_wrapper(Item **args,
     result= val_json_func_field_subselect(arg, calling_function, value, tmp, wr,
                                           scalar, accept_string);
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(calling_function);
-    return true;
-    /* purecov: end */
-  }
+  } CATCH_ALL("CAST(... AS JSON)", result= true) /* purecov: inspected */
 
   return result;
 }
 
 
+/**
+  Convert JSON values or MySQL values to JSON. Converts SQL NULL
+  to the JSON null literal.
+
+  @param[in]     args       arguments to function
+  @param[in]     arg_idx    the index of the argument to process
+  @param[in]     calling_function    name of the calling function
+  @param[in,out] value      working area (if the returned Json_wrapper points
+                            to a binary value rather than a DOM, this string
+                            will end up holding the binary representation, and
+                            it must stay alive until the wrapper is destroyed
+                            or converted from binary to DOM)
+  @param[in,out] tmp        temporary scratch space for converting strings to
+                            the correct charset; only used if accept_string is
+                            true and conversion is needed
+  @param[in,out] wr         the result wrapper
+  @returns false if we found a value or NULL, true otherwise
+*/
 bool get_atom_null_as_null(Item **args, uint arg_idx,
                            const char *calling_function, String *value,
                            String *tmp, Json_wrapper *wr)
@@ -1799,14 +1870,7 @@ longlong Item_func_json_length::val_int()
       null_value= true;
       return 0;
     }
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_int();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_length", return 0)        /* purecov: inspected */
 
   if (arg_count > 1)
   {
@@ -1856,14 +1920,7 @@ longlong Item_func_json_depth::val_int()
       null_value= true;
       return 0;
     }
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_int();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_depth", return error_int()) /* purecov: inspected */
 
   result= wrapper.depth();
 
@@ -1933,14 +1990,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr)
     Json_wrapper resw(res);
     wr->steal(&resw);
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_keys", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -2015,14 +2065,8 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
       DBUG_ASSERT(v.size() == 1);
       wr->steal(&v[0]);
     }
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+
+  } CATCH_ALL("json_extract", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -2154,14 +2198,8 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
 
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+
+  } CATCH_ALL("json_array_append", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -2320,14 +2358,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_insert", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -2434,14 +2465,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_array_insert", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -2702,14 +2726,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+  } CATCH_ALL(func_name(), return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -2745,14 +2762,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_array", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -2810,14 +2820,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_object", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -3158,14 +3161,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
       }   // end of loop through user-supplied path expressions
     }     // end if there are user-supplied path expressions
 
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_search", return error_json()) /* purecov: inspected */
 
   if (matches.size() == 0)
   {
@@ -3213,6 +3209,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
 
   Json_wrapper wrapper;
   uint32  path_count= arg_count - 1;
+  bool  had_error= false;
   null_value= false;
 
   try
@@ -3230,17 +3227,15 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
       if (m_path_cache.parse_and_cache_path(args, path_idx + 1, true))
       {
         null_value= true;
-        return false;
+        break;
       }
     }
 
-  }
-  catch (...)
+  } CATCH_ALL("json_remove", (had_error= true)) /* purecov: inspected */
+
+  if (had_error || null_value)
   {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
+    return had_error ? error_json() : false;
   }
 
   for (uint path_idx= 0; path_idx < path_count; ++path_idx)
@@ -3304,7 +3299,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
 }
 
 
-bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr)
+bool Item_func_json_merge::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -3342,14 +3337,7 @@ bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr)
       next_wrapper.set_alias();
       result_dom= (idx == 0) ? next_dom : merge_doms(result_dom, next_dom);
     }
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    had_error= true;
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_merge", (had_error= true)) /* purecov: inspected */
 
   if (had_error || null_value)
   {
@@ -3419,14 +3407,7 @@ String *Item_func_json_quote::val_str(String *str)
     res->set_charset(&my_charset_utf8mb4_bin);
     if (double_quote(safep, safep_size, res))
       return error_str();                 /* purecov: inspected */
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_str();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_quote", return error_str()) /* purecov: inspected */
 
   null_value= false;
   return res;
@@ -3514,14 +3495,7 @@ String *Item_func_json_unquote::val_str(String *str)
     Json_wrapper wr(dom);
     if (str->copy(wr.get_data(), wr.get_data_length(), collation.collation))
       return error_str();                     /* purecov: inspected */
-  }
-  catch (...)
-  {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_str();
-    /* purecov: end */
-  }
+  } CATCH_ALL("json_unquote", return error_str()) /* purecov: inspected */
 
 
   null_value= false;
@@ -3544,172 +3518,4 @@ void delete_json_scalar_holder(Json_scalar_holder *holder)
 Json_scalar *get_json_scalar_from_holder(Json_scalar_holder *holder)
 {
   return boost::polymorphic_get<Json_scalar>(&holder->m_val);
-}
-
-
-String *Item_func_json_pretty::val_str(String *str)
-{
-  DBUG_ASSERT(fixed);
-  try
-  {
-    Json_wrapper wr;
-    if (get_json_wrapper(args, 0, str, func_name(), &wr))
-      return error_str();
-
-    null_value= args[0]->null_value;
-    if (null_value)
-      return NULL;
-
-    str->length(0);
-    if (wr.to_pretty_string(str, func_name()))
-      return error_str();                       /* purecov: inspected */
-
-    return str;
-  }
-  /* purecov: begin inspected */
-  catch (...)
-  {
-    handle_std_exception(func_name());
-    return error_str();
-  }
-  /* purecov: end */
-}
-
-
-longlong Item_func_json_storage_size::val_int()
-{
-  DBUG_ASSERT(fixed);
-
-  /*
-    If the input is a reference to a JSON column, return the actual storage
-    size of the value in the table.
-  */
-  if (args[0]->type() == FIELD_ITEM && args[0]->field_type() == MYSQL_TYPE_JSON)
-  {
-    null_value= args[0]->is_null();
-    if (null_value)
-      return 0;
-    return down_cast<Item_field*>(args[0])->field->data_length();
-  }
-
-  /*
-    Otherwise, return the size required to store the argument if it were
-    serialized to the binary JSON format.
-  */
-  Json_wrapper wrapper;
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
-  try
-  {
-    if (get_json_wrapper(args, 0, &buffer, func_name(), &wrapper))
-      return error_int();
-  }
-  /* purecov: begin inspected */
-  catch (...)
-  {
-    handle_std_exception(func_name());
-    return error_int();
-  }
-  /* purecov: end */
-
-  null_value= args[0]->null_value;
-  if (null_value)
-    return 0;
-
-  if (wrapper.to_binary(&buffer))
-    return error_int();                         /* purecov: inspected */
-  return buffer.length();
-}
-
-
-bool Item_func_json_merge_patch::val_json(Json_wrapper *wr)
-{
-  DBUG_ASSERT(fixed);
-
-  try
-  {
-    if (get_json_wrapper(args, 0, &m_value, func_name(), wr))
-      return error_json();
-
-    null_value= args[0]->null_value;
-
-    Json_wrapper patch_wr;
-    for (uint i= 1; i < arg_count; ++i)
-    {
-      if (get_json_wrapper(args, i, &m_value, func_name(), &patch_wr))
-        return error_json();
-
-      if (args[i]->null_value)
-      {
-        /*
-          The patch is unknown, so the result so far is unknown. We
-          cannot return NULL immediately, since a later patch can give
-          a known result. This is because the result of a merge
-          operation is the patch itself if the patch is not an object,
-          regardless of what the target document is.
-        */
-        null_value= true;
-        continue;
-      }
-
-      /*
-        If a patch is not an object, the result of the merge operation
-        is the patch itself. So just set the result to this patch and
-        go on to the next patch.
-      */
-      if (patch_wr.type() != Json_dom::J_OBJECT)
-      {
-        wr->steal(&patch_wr);
-        null_value= false;
-        continue;
-      }
-
-      /*
-        The target document is unknown, and we cannot tell the result
-        from the patch alone when the patch is an object, so go on to
-        the next patch.
-      */
-      if (null_value)
-        continue;
-
-      /*
-        Get the DOM representation of the target document. It should
-        be an object, and we will use an empty object if it is not.
-      */
-      std::auto_ptr<Json_object> target_dom;
-      if (wr->type() == Json_dom::J_OBJECT)
-      {
-        target_dom.reset(down_cast<Json_object*>(wr->to_dom()));
-        wr->set_alias();
-      }
-      else
-      {
-        target_dom.reset(new (std::nothrow) Json_object());
-      }
-
-      if (target_dom.get() == NULL)
-        return error_json();                  /* purecov: inspected */
-
-      // Get the DOM representation of the patch object.
-      Json_object *patch_dom= down_cast<Json_object*>(patch_wr.to_dom());
-      patch_wr.set_alias();    // target_dom will take over the ownership
-
-      // Apply the patch on the target document.
-      if (patch_dom == NULL || target_dom->merge_patch(patch_dom))
-        return error_json();                  /* purecov: inspected */
-
-      // Move the result of the merge operation into the result wrapper.
-      Json_wrapper res(target_dom.release());
-      wr->steal(&res);
-      null_value= false;
-    }
-
-    return false;
-  }
-  /* purecov: begin inspected */
-  catch (...)
-  {
-    handle_std_exception(func_name());
-    return error_json();
-  }
-  /* purecov: end */
 }

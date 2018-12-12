@@ -250,21 +250,7 @@ Sets up the logarithm base for the scale.
      :default: OFF
      :range: ON/OFF
 
-This global variable enables and disables collection of query times.
-
-.. variable:: query_response_time_session_stats
-
-     :cli: No
-     :conf: No
-     :scope: Session
-     :dyn: Yes
-     :vartype: Text
-     :default: GLOBAL
-     :range: ON/OFF/GLOBAL
-
-This variable enables and disables collection of query times on session level, thus
-customizing QRT behavior for individual connections. By default, its value is `GLOBAL`,
-which means that its value is taken from the :variable:`query_response_time_stats` variable.
+This variable enables and disables collection of query times.
 
 INFORMATION_SCHEMA Tables
 =========================

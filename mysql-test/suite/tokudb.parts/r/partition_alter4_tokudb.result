@@ -71,6 +71,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -563,6 +565,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -1066,6 +1070,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -1570,6 +1576,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -2068,6 +2076,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -2572,6 +2582,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -3081,6 +3093,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -3588,6 +3602,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -4085,6 +4101,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -4577,6 +4595,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -5080,6 +5100,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -5584,6 +5606,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -6082,6 +6106,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -6586,6 +6612,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -7095,6 +7123,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -7602,6 +7632,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -8100,6 +8132,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -8593,6 +8627,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -9097,6 +9133,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -9602,6 +9640,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -10101,6 +10141,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -10606,6 +10648,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -11116,6 +11160,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -11624,6 +11670,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -12122,6 +12170,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -12615,6 +12665,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -13119,6 +13171,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -13624,6 +13678,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -14123,6 +14179,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -14628,6 +14686,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -15138,6 +15198,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -15646,6 +15708,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -16143,6 +16207,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -16635,6 +16701,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -17138,6 +17206,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -17642,6 +17712,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -18140,6 +18212,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -18644,6 +18718,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -19153,6 +19229,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -19660,6 +19738,8 @@ test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprec
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;

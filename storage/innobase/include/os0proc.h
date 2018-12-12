@@ -54,12 +54,10 @@ os_proc_get_number(void);
 
 /** Allocates large pages memory.
 @param[in,out]	n	Number of bytes to allocate
-@param[in] populate virtual page preallocation
 @return allocated memory */
 void*
 os_mem_alloc_large(
-	ulint*	n,
-	bool	populate);
+	ulint*	n);
 
 /** Frees large pages memory.
 @param[in]	ptr	pointer returned by os_mem_alloc_large()

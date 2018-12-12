@@ -35,7 +35,6 @@ Created 2012-02-08 by Sunny Bains.
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "fsp0sysspace.h"
-#include "fil0crypt.h"
 
 #include <my_aes.h>
 
@@ -309,16 +308,8 @@ row_quiesce_write_header(
 {
 	byte			value[sizeof(ib_uint32_t)];
 
-
-        fil_space_t*	space = fil_space_get(table->space); //TODO:Robert nie muszę tu i wszędzie gdzie jest pobierany space dodać coś
-                                                             //z ios ?
-        ut_ad(space != NULL);
-
 	/* Write the meta-data version number. */
-        if (space->crypt_data != NULL && space->crypt_data->type != CRYPT_SCHEME_UNENCRYPTED)
-         	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1_WITH_RK);
-          else
-         	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1);
+	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1);
 
 	DBUG_EXECUTE_IF("ib_export_io_write_failure_4", close(fileno(file)););
 
@@ -610,11 +601,8 @@ row_quiesce_write_cfp(
 	dberr_t			err;
 	char			name[OS_FILE_MAX_PATH];
 
-
-        fil_space_t*	space = fil_space_get(table->space);
-
 	/* If table is not encrypted, return. */
-	if (!dict_table_is_encrypted(table) || space->crypt_data != NULL) {
+	if (!dict_table_is_encrypted(table)) {
 		return(DB_SUCCESS);
 	}
 
@@ -632,6 +620,7 @@ row_quiesce_write_cfp(
 			static_cast<byte*>(mem_heap_alloc(table->heap,
 							  ENCRYPTION_KEY_LEN));
 
+		fil_space_t*	space = fil_space_get(table->space);
 		ut_ad(space != NULL && FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
 		memcpy(table->encryption_key,
@@ -753,17 +742,15 @@ row_quiesce_table_start(
 	if (!trx_is_interrupted(trx)) {
 		extern	ib_mutex_t	master_key_id_mutex;
 
-		bool was_master_key_id_mutex_locked = false;
-		if (dict_table_is_encrypted(table) && !table->keyring_encryption_info.page0_has_crypt_data) {
+		if (dict_table_is_encrypted(table)) {
 			/* Require the mutex to block key rotation. */
-			was_master_key_id_mutex_locked = true;
 			mutex_enter(&master_key_id_mutex);
 		}
 
 		buf_LRU_flush_or_remove_pages(
 			table->space, BUF_REMOVE_FLUSH_WRITE, trx);
 
-		if (was_master_key_id_mutex_locked) {
+		if (dict_table_is_encrypted(table)) {
 			mutex_exit(&master_key_id_mutex);
 		}
 

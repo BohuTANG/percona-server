@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1015,9 +1015,8 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
     memmove(save_action, action, sizeof(st_debug_sync_action));
 
     /* Move actions down. */
-    void *dest= ds_control->ds_action + dsp_idx;
-    const void *src= ds_control->ds_action + dsp_idx + 1;
-    memmove(dest, src,
+    memmove(ds_control->ds_action + dsp_idx,
+            ds_control->ds_action + dsp_idx + 1,
             (ds_control->ds_active - dsp_idx) *
             sizeof(st_debug_sync_action));
 
@@ -1027,8 +1026,7 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
       produced by the shift. Again do not use an assignment operator to
       avoid string allocation/copy.
     */
-    dest= ds_control->ds_action + ds_control->ds_active;
-    memmove(dest, save_action,
+    memmove(ds_control->ds_action + ds_control->ds_active, save_action,
             sizeof(st_debug_sync_action));
   }
 
@@ -1101,8 +1099,7 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
       ds_control->ds_action= (st_debug_sync_action*) new_action;
       ds_control->ds_allocated= new_alloc;
       /* Clear memory as we do not run string constructors here. */
-      void *dest= (ds_control->ds_action + dsp_idx);
-      memset(dest, 0,
+      memset((ds_control->ds_action + dsp_idx), 0,
             (new_alloc - dsp_idx) * sizeof(st_debug_sync_action));
     }
     DBUG_PRINT("debug_sync", ("added action idx: %u", dsp_idx));

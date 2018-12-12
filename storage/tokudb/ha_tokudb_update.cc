@@ -23,6 +23,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
+#if TOKU_INCLUDE_UPSERT
+
 // Point updates and upserts
 
 // Restrictions:
@@ -128,7 +130,7 @@ static void dump_item_list(const char* h, List<Item> &l) {
 }
 
 // Find a Field by its Item name
-static Field* find_field_by_name(TOKUDB_UNUSED(TABLE* table), Item* item) {
+static Field* find_field_by_name(TABLE* table, Item* item) {
     if (item->type() != Item::FIELD_ITEM)
         return NULL;
     Item_field* field_item = static_cast<Item_field*>(item);
@@ -189,9 +191,12 @@ static uint32_t var_field_index(
     return v_index;    
 }
 
-static uint32_t blob_field_index(TABLE* table,
-                                 KEY_AND_COL_INFO* kc_info,
-                                 uint field_num) {
+static uint32_t blob_field_index(
+    TABLE* table,
+    KEY_AND_COL_INFO* kc_info,
+    uint idx,
+    uint field_num) {
+
     assert_always(field_num < table->s->fields);
     uint b_index;
     for (b_index = 0; b_index < kc_info->num_blobs; b_index++) {
@@ -216,11 +221,6 @@ int ha_tokudb::fast_update(
     TOKUDB_HANDLER_DBUG_ENTER("");
     int error = 0;
 
-    if (!tokudb::sysvars::enable_fast_update(thd)) {
-        error = ENOTSUP;
-        goto exit;
-    }
-
     if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_UPSERT))) {
         dump_item_list("fields", update_fields);
         dump_item_list("values", update_values);
@@ -232,27 +232,34 @@ int ha_tokudb::fast_update(
     if (update_fields.elements < 1 ||
         update_fields.elements != update_values.elements) {
         error = ENOTSUP;  // something is fishy with the parameters
-        goto exit;
+        goto return_error;
     }
-
+    
     if (!check_fast_update(thd, update_fields, update_values, conds)) {
-        error = HA_ERR_UNSUPPORTED;
-        goto exit;
+        error = ENOTSUP;
+        goto check_error;
     }
 
     error = send_update_message(
-        update_fields, update_values, conds, transaction);
-
-    if (error) {
-        int mapped_error = map_to_handler_error(error);
-        if (mapped_error == error)
-            error = HA_ERR_UNSUPPORTED;
+        update_fields,
+        update_values,
+        conds,
+        transaction);
+    if (error != 0) {
+        goto check_error;
     }
 
-exit:
-    if (error != 0 && error != ENOTSUP)
-        print_error(error, MYF(0));
+check_error:
+    if (error != 0) {
+#if TOKU_INCLUDE_UPSERT
+        if (tokudb::sysvars::disable_slow_update(thd) != 0)
+            error = HA_ERR_UNSUPPORTED;
+#endif
+        if (error != ENOTSUP)
+            print_error(error, MYF(0));
+    }
 
+return_error:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
@@ -557,6 +564,14 @@ static bool clustering_keys_exist(TABLE *table) {
     return false;
 }
 
+static bool is_strict_mode(THD* thd) {
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    return thd->is_strict_mode();
+#else
+    return tokudb_test(thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
+#endif
+}
+
 // Check if an update operation can be handled by this storage engine.
 // Return true if it can.
 bool ha_tokudb::check_fast_update(
@@ -569,7 +584,7 @@ bool ha_tokudb::check_fast_update(
         return false;
 
     // avoid strict mode arithmetic overflow issues
-    if (thd->is_strict_mode())
+    if (is_strict_mode(thd))
         return false;
 
     // no triggers
@@ -760,7 +775,11 @@ static void marshall_update(
         update_operation = '=';
         field_type = lhs_field->binary() ? UPDATE_TYPE_BLOB : UPDATE_TYPE_TEXT;
         offset =
-            blob_field_index(table, &share->kc_info, lhs_field->field_index);
+            blob_field_index(
+                table,
+                &share->kc_info,
+                table->s->primary_key,
+                lhs_field->field_index);
         v_str = *rhs_item->val_str(&v_str);
         v_length = v_str.length();
         if (v_length >= lhs_field->max_data_length()) {
@@ -936,12 +955,8 @@ int ha_tokudb::upsert(
     List<Item>& update_values) {
 
     TOKUDB_HANDLER_DBUG_ENTER("");
-    int error = 0;
 
-    if (!tokudb::sysvars::enable_fast_upsert(thd)) {
-        error = ENOTSUP;
-        goto exit;
-    }
+    int error = 0;
 
     if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_UPSERT))) {
         fprintf(stderr, "upsert\n");
@@ -953,26 +968,30 @@ int ha_tokudb::upsert(
     if (update_fields.elements < 1 ||
         update_fields.elements != update_values.elements) {
         error = ENOTSUP;
-        goto exit;
+        goto return_error;
     }
 
     if (!check_upsert(thd, update_fields, update_values)) {
-        error = HA_ERR_UNSUPPORTED;
-        goto exit;
+        error = ENOTSUP;
+        goto check_error;
+    }
+    
+    error = send_upsert_message(thd, update_fields, update_values, transaction);
+    if (error != 0) {
+        goto check_error;
     }
 
-    error = send_upsert_message(update_fields, update_values, transaction);
-
-    if (error) {
-        int mapped_error = map_to_handler_error(error);
-        if (mapped_error == error)
+check_error:
+    if (error != 0) {
+#if TOKU_INCLUDE_UPSERT
+        if (tokudb::sysvars::disable_slow_upsert(thd) != 0)
             error = HA_ERR_UNSUPPORTED;
+#endif
+        if (error != ENOTSUP)
+            print_error(error, MYF(0));
     }
 
-exit:
-    if (error != 0 && error != ENOTSUP)
-        print_error(error, MYF(0));
-
+return_error:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
@@ -987,7 +1006,7 @@ bool ha_tokudb::check_upsert(
         return false;
 
     // avoid strict mode arithmetic overflow issues
-    if (thd->is_strict_mode())
+    if (is_strict_mode(thd))
         return false;
 
     // no triggers
@@ -1021,6 +1040,7 @@ bool ha_tokudb::check_upsert(
 // Generate an upsert message and send it into the primary tree.
 // Return 0 if successful.
 int ha_tokudb::send_upsert_message(
+    THD* thd,
     List<Item>& update_fields,
     List<Item>& update_values,
     DB_TXN* txn) {
@@ -1115,3 +1135,5 @@ int ha_tokudb::send_upsert_message(
 
     return error;
 }
+
+#endif

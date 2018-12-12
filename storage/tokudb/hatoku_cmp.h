@@ -202,7 +202,12 @@ static inline const uchar* unpack_toku_field_blob(uchar *to_mysql, const uchar* 
 }
 
 static inline uint get_null_offset(TABLE* table, Field* field) {
+#if (50606 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
     return field->null_offset(table->record[0]);
+#else
+    return (uint) ((uchar*) field->null_ptr - (uchar*) table->record[0]);
+#endif
 }
 
 typedef enum {
@@ -349,7 +354,11 @@ static uint32_t create_toku_clustering_val_pack_descriptor (
     bool is_clustering
     );
 
-static inline bool is_key_clustering(uint32_t row_desc_size) {
+static inline bool is_key_clustering(
+    void* row_desc,
+    uint32_t row_desc_size
+    ) 
+{
     return (row_desc_size > 0);
 }
 
@@ -375,8 +384,12 @@ static uint32_t create_toku_secondary_key_pack_descriptor (
     KEY* prim_key
     );
 
-static inline bool is_key_pk(void* row_desc) {
-    uchar* buf = (uchar*)row_desc;
+static inline bool is_key_pk(
+    void* row_desc,
+    uint32_t row_desc_size
+    ) 
+{
+    uchar* buf = (uchar *)row_desc;
     return buf[0];
 }
 

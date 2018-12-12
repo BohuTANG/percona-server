@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -114,11 +114,10 @@ IF(MSVC)
      SET("${flag}" "${${flag}} /EHsc")
     ENDFOREACH()
   
+  # Fix CMake's predefined huge stack size
   FOREACH(type EXE SHARED MODULE)
-    SET(CMAKE_${type}_LINKER_FLAGS_DEBUG
-	    "${CMAKE_${type}_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO")
-    SET(CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO
-	    "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
+   STRING(REGEX REPLACE "/STACK:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS "${CMAKE_${type}_LINKER_FLAGS}")
+   STRING(REGEX REPLACE "/INCREMENTAL:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO}")
   ENDFOREACH()
   
   # Mark 32 bit executables large address aware so they can 

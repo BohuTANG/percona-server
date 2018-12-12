@@ -344,9 +344,7 @@ protected:
   /* Shall calculate how much space is remaining in the join buffer */ 
   virtual ulong rem_space() 
   { 
-    return static_cast<ulong>(
-      std::max<long>(buff_size-(end_pos-buff)-aux_buff_size, 0L)
-    );
+    return std::max<ulong>(buff_size-(end_pos-buff)-aux_buff_size, 0UL);
   }
 
   /* Shall skip record from the join buffer if its match flag is on */
@@ -814,9 +812,8 @@ protected:
   */ 
   ulong rem_space() 
   { 
-    return static_cast<ulong>(
-      std::max<long>(last_key_entry - end_pos-aux_buff_size, 0L)
-    );
+    return std::max(static_cast<ulong>(last_key_entry - end_pos-aux_buff_size),
+                    0UL);
   }
 
   /* 

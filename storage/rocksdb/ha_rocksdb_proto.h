@@ -20,7 +20,7 @@
 #include <vector>
 
 /* MySQL header files */
-#include "sql_string.h"
+#include "./sql_string.h"
 
 /* RocksDB includes */
 #include "rocksdb/table.h"
@@ -42,7 +42,7 @@ void rdb_handle_io_error(const rocksdb::Status status,
                          const RDB_IO_ERROR_TYPE err_type);
 
 int rdb_normalize_tablename(const std::string &tablename, std::string *str)
-    MY_ATTRIBUTE((__warn_unused_result__));
+    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
 int rdb_split_normalized_tablename(const std::string &fullname, std::string *db,
                                    std::string *table = nullptr,
@@ -52,9 +52,11 @@ int rdb_split_normalized_tablename(const std::string &fullname, std::string *db,
 std::vector<std::string> rdb_get_open_table_names(void);
 
 int rdb_get_table_perf_counters(const char *tablename,
-                                Rdb_perf_counters *counters);
+                                Rdb_perf_counters *counters)
+    MY_ATTRIBUTE((__nonnull__(2)));
 
-void rdb_get_global_perf_counters(Rdb_perf_counters *counters);
+void rdb_get_global_perf_counters(Rdb_perf_counters *counters)
+    MY_ATTRIBUTE((__nonnull__(1)));
 
 void rdb_queue_save_stats_request();
 
@@ -70,12 +72,12 @@ Rdb_cf_manager &rdb_get_cf_manager();
 const rocksdb::BlockBasedTableOptions &rdb_get_table_options();
 bool rdb_is_ttl_enabled();
 bool rdb_is_ttl_read_filtering_enabled();
-#if !defined(DBUG_OFF)
+#ifndef NDEBUG
 int rdb_dbug_set_ttl_rec_ts();
 int rdb_dbug_set_ttl_snapshot_ts();
 int rdb_dbug_set_ttl_read_filter_ts();
 bool rdb_dbug_set_ttl_ignore_pk();
-#endif  // !defined(DBUG_OFF)
+#endif
 
 enum operation_type : int;
 void rdb_update_global_stats(const operation_type &type, uint count,
@@ -87,9 +89,5 @@ Rdb_dict_manager *rdb_get_dict_manager(void)
 
 class Rdb_ddl_manager;
 Rdb_ddl_manager *rdb_get_ddl_manager(void)
-    MY_ATTRIBUTE((__warn_unused_result__));
-
-struct Rdb_hton_init_state;
-Rdb_hton_init_state *rdb_get_hton_init_state(void)
     MY_ATTRIBUTE((__warn_unused_result__));
 } // namespace myrocks

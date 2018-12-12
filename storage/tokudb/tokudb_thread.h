@@ -46,25 +46,23 @@ public:
     ~mutex_t(void);
 
     void reinit(pfs_key_t key);
-    void deinit();
     void lock(
-#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
+#ifdef HAVE_PSI_MUTEX_INTERFACE
         const char* src_file,
         uint src_line
-#endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
-    );
+#endif  // HAVE_PSI_MUTEX_INTERFACE
+        );
     void unlock(
-#if defined(SAFE_MUTEX)
+#ifdef HAVE_PSI_MUTEX_INTERFACE
         const char* src_file,
         uint src_line
-#endif  // SAFE_MUTEX
+#endif  // HAVE_PSI_MUTEX_INTERFACE
         );
 #ifdef TOKUDB_DEBUG
     bool is_owned_by_me(void) const;
 #endif
-   private:
+private:
     static pthread_t _null_owner;
-    bool initialized;
     mysql_mutex_t _mutex;
 #ifdef TOKUDB_DEBUG
     uint _owners;
@@ -201,47 +199,44 @@ private:
 
 inline uint my_tid(void) { return (uint)toku_os_gettid(); }
 
-inline mutex_t::mutex_t(pfs_key_t key) : initialized(false) {
+inline mutex_t::mutex_t(pfs_key_t key) {
 #ifdef TOKUDB_DEBUG
     _owners = 0;
     _owner = _null_owner;
 #endif
-    int r MY_ATTRIBUTE((unused)) =
-        mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
+    int  r MY_ATTRIBUTE((unused)) = mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
     assert_debug(r == 0);
-    initialized = true;
 }
-inline mutex_t::~mutex_t(void) { deinit(); }
-inline void mutex_t::reinit(pfs_key_t key) {
-    deinit();
-    int r MY_ATTRIBUTE((unused)) =
-        mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
-    assert_debug(r == 0);
-    initialized = true;
-}
-inline void mutex_t::deinit() {
+inline mutex_t::~mutex_t(void) {
 #ifdef TOKUDB_DEBUG
     assert_debug(_owners == 0);
 #endif
-    if (!initialized)
-        return;
-    int r MY_ATTRIBUTE((unused)) = mysql_mutex_destroy(&_mutex);
+    int  r MY_ATTRIBUTE((unused)) = mysql_mutex_destroy(&_mutex);
     assert_debug(r == 0);
-    initialized = false;
+}
+inline void mutex_t::reinit(pfs_key_t key) {
+#ifdef TOKUDB_DEBUG
+    assert_debug(_owners == 0);
+#endif
+    int  r MY_ATTRIBUTE((unused));
+    r = mysql_mutex_destroy(&_mutex);
+    assert_debug(r == 0);
+    r = mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
+    assert_debug(r == 0);
 }
 inline void mutex_t::lock(
-#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
+#ifdef HAVE_PSI_MUTEX_INTERFACE
     const char* src_file,
     uint src_line
-#endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
-) {
+#endif  // HAVE_PSI_MUTEX_INTERFACE
+    ) {
     assert_debug(is_owned_by_me() == false);
     int r MY_ATTRIBUTE((unused)) = inline_mysql_mutex_lock(&_mutex
-#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
+#ifdef HAVE_PSI_MUTEX_INTERFACE
                                     ,
                                     src_file,
                                     src_line
-#endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
+#endif  // HAVE_PSI_MUTEX_INTERFACE
                                     );
     assert_debug(r == 0);
 #ifdef TOKUDB_DEBUG
@@ -250,11 +245,15 @@ inline void mutex_t::lock(
 #endif
 }
 inline void mutex_t::unlock(
-#if defined(SAFE_MUTEX)
+#ifdef HAVE_PSI_MUTEX_INTERFACE
     const char* src_file,
     uint src_line
-#endif  // SAFE_MUTEX
+#endif  // HAVE_PSI_MUTEX_INTERFACE
     ) {
+#ifndef SAFE_MUTEX
+    (void)(src_file);
+    (void)(src_line);
+#endif  // SAFE_MUTEX
 #ifdef TOKUDB_DEBUG
     assert_debug(_owners > 0);
     assert_debug(is_owned_by_me());
@@ -262,7 +261,7 @@ inline void mutex_t::unlock(
     _owner = _null_owner;
 #endif
     int r MY_ATTRIBUTE((unused)) = inline_mysql_mutex_unlock(&_mutex
-#if defined(SAFE_MUTEX)
+#ifdef SAFE_MUTEX
                                       ,
                                       src_file,
                                       src_line

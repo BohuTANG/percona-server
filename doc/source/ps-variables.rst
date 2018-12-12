@@ -77,11 +77,6 @@ System Variables
      - Yes
      - Global
      - No
-   * - :variable:`binlog_space_limit`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`csv_mode`
      - Yes
      - Yes
@@ -107,11 +102,6 @@ System Variables
      - Yes
      - Global
      - No
-   * - :variable:`ft_query_extra_word_chars`
-     - Yes
-     - Yes
-     - Both
-     - Yes
    * - :variable:`have_backup_locks`
      - Yes
      - No
@@ -142,16 +132,6 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`innodb_encrypt_online_alter_logs`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_encrypt_tables`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`innodb_kill_idle_transaction`
      - Yes
      - Yes
@@ -167,11 +147,6 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`innodb_print_lock_wait_timeout_info`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`innodb_show_locks_held`
      - Yes
      - Yes
@@ -182,27 +157,12 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`innodb_temp_tablespace_encrypt`
-     - Yes
-     - Yes
-     - Global
-     - No
    * - :variable:`innodb_track_changed_pages`
      - Yes
      - Yes
      - Global
      - No
    * - :variable:`innodb_use_global_flush_log_at_trx_commit`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`keyring_vault_config`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`keyring_vault_timeout`
      - Yes
      - Yes
      - Global
@@ -643,16 +603,6 @@ System Variables
      -
      -
    * - :variable:`userstat`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`version_comment`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`version_suffix`
      - Yes
      - Yes
      - Global
